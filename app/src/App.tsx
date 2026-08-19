@@ -2,26 +2,40 @@ import { useEffect, useState } from 'react';
 import { addFillUp, addVehicle, getFillUps, getVehicles } from './db';
 import { aggregateStats, type FillUp, type Vehicle } from './lib/fuelCalc';
 import { exportFillUpsToExcel } from './lib/excelExport';
-import { VehicleSelector } from './components/VehicleSelector';
+import { Settings } from './components/Settings';
 import { FillUpForm } from './components/FillUpForm';
+import { History } from './components/History';
 import { Dashboard } from './components/Dashboard';
 
-type Page = 'form' | 'dashboard';
+type Page = 'form' | 'history' | 'dashboard' | 'settings';
+
+const SELECTED_VEHICLE_KEY = 'fuel-tracker:selectedVehicleId';
 
 export default function App() {
   const [page, setPage] = useState<Page>('form');
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(
+    () => localStorage.getItem(SELECTED_VEHICLE_KEY)
+  );
   const [fillUps, setFillUps] = useState<FillUp[]>([]);
 
   useEffect(() => {
     getVehicles().then((list) => {
       setVehicles(list);
-      if (list.length && !selectedVehicleId) setSelectedVehicleId(list[0].id);
+      const stillValid = list.some((v) => v.id === selectedVehicleId);
+      if (!stillValid) {
+        setSelectedVehicleId(list.length ? list[0].id : null);
+      }
     });
   }, []);
 
   useEffect(() => {
+    if (selectedVehicleId) {
+      localStorage.setItem(SELECTED_VEHICLE_KEY, selectedVehicleId);
+    } else {
+      localStorage.removeItem(SELECTED_VEHICLE_KEY);
+    }
+
     if (!selectedVehicleId) {
       setFillUps([]);
       return;
@@ -31,8 +45,7 @@ export default function App() {
 
   async function handleAddVehicle(name: string) {
     const vehicle = await addVehicle(name);
-    const list = await getVehicles();
-    setVehicles(list);
+    setVehicles(await getVehicles());
     setSelectedVehicleId(vehicle.id);
   }
 
@@ -55,31 +68,57 @@ export default function App() {
   }
 
   const stats = aggregateStats(fillUps);
+  const activeVehicle = vehicles.find((v) => v.id === selectedVehicleId) ?? null;
+
+  function renderPage() {
+    if (page === 'settings') {
+      return (
+        <Settings
+          vehicles={vehicles}
+          selectedId={selectedVehicleId}
+          onSelect={setSelectedVehicleId}
+          onAdd={handleAddVehicle}
+        />
+      );
+    }
+
+    if (!activeVehicle) {
+      return (
+        <div className="card">
+          <p className="empty-hint">
+            No vehicle selected yet. Go to Settings to add a vehicle before logging fill-ups.
+          </p>
+          <button type="button" onClick={() => setPage('settings')}>
+            Open Settings
+          </button>
+        </div>
+      );
+    }
+
+    if (page === 'form') return <FillUpForm vehicleId={selectedVehicleId} onSubmit={handleAddFillUp} />;
+    if (page === 'history') return <History fillUps={fillUps} />;
+    return <Dashboard stats={stats} onExport={handleExport} />;
+  }
 
   return (
     <div className="app">
-      <h1>Fuel Tracker</h1>
+      <h1>Fuel Tracker{activeVehicle ? ` — ${activeVehicle.name}` : ''}</h1>
       <nav>
         <a className={page === 'form' ? 'active' : ''} onClick={() => setPage('form')}>
-          Add fill-up
+          Add
+        </a>
+        <a className={page === 'history' ? 'active' : ''} onClick={() => setPage('history')}>
+          History
         </a>
         <a className={page === 'dashboard' ? 'active' : ''} onClick={() => setPage('dashboard')}>
           Dashboard
         </a>
+        <a className={page === 'settings' ? 'active' : ''} onClick={() => setPage('settings')}>
+          Settings
+        </a>
       </nav>
 
-      <VehicleSelector
-        vehicles={vehicles}
-        selectedId={selectedVehicleId}
-        onSelect={setSelectedVehicleId}
-        onAdd={handleAddVehicle}
-      />
-
-      {page === 'form' ? (
-        <FillUpForm vehicleId={selectedVehicleId} onSubmit={handleAddFillUp} />
-      ) : (
-        <Dashboard stats={stats} onExport={handleExport} />
-      )}
+      {renderPage()}
     </div>
   );
 }

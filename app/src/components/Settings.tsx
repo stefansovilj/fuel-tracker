@@ -8,7 +8,7 @@ interface Props {
   onAdd: (name: string) => Promise<void>;
 }
 
-export function VehicleSelector({ vehicles, selectedId, onSelect, onAdd }: Props) {
+export function Settings({ vehicles, selectedId, onSelect, onAdd }: Props) {
   const [newName, setNewName] = useState('');
   const [adding, setAdding] = useState(false);
 
@@ -25,12 +25,9 @@ export function VehicleSelector({ vehicles, selectedId, onSelect, onAdd }: Props
 
   return (
     <div className="card">
-      <label htmlFor="vehicle">Vehicle</label>
-      <select
-        id="vehicle"
-        value={selectedId ?? ''}
-        onChange={(e) => onSelect(e.target.value)}
-      >
+      <h2>Active vehicle</h2>
+      <label htmlFor="vehicle">Fill-ups and stats are shown for this vehicle</label>
+      <select id="vehicle" value={selectedId ?? ''} onChange={(e) => onSelect(e.target.value)}>
         {vehicles.length === 0 && <option value="">No vehicles yet</option>}
         {vehicles.map((v) => (
           <option key={v.id} value={v.id}>
@@ -39,7 +36,7 @@ export function VehicleSelector({ vehicles, selectedId, onSelect, onAdd }: Props
         ))}
       </select>
 
-      <label htmlFor="newVehicleName">New vehicle name</label>
+      <label htmlFor="newVehicleName">Add a vehicle</label>
       <input
         id="newVehicleName"
         type="text"
