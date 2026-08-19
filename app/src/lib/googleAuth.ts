@@ -90,6 +90,6 @@ export async function ensureAccessToken(clientId: string): Promise<string> {
         reject(new Error(error?.message || 'Google sign-in failed or was cancelled.'));
       },
     });
-    client.requestAccessToken();
+    client.requestAccessToken({ prompt: 'select_account' });
   });
 }
