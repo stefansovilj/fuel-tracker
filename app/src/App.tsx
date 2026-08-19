@@ -17,6 +17,7 @@ const PAGE_KEY = 'fuel-tracker:page';
 const SELECTED_VEHICLE_KEY = 'fuel-tracker:selectedVehicleId';
 const GOOGLE_CLIENT_ID_KEY = 'fuel-tracker:googleClientId';
 const SYNC_SPREADSHEET_ID_KEY = 'fuel-tracker:syncSpreadsheetId';
+const EUR_RATE_KEY = 'fuel-tracker:eurRate';
 
 const VALID_PAGES: Page[] = ['form', 'history', 'dashboard', 'settings'];
 
@@ -39,6 +40,7 @@ export default function App() {
   const [googleConnected, setGoogleConnected] = useState(() => isGoogleConnected());
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [toastVisible, setToastVisible] = useState(false);
+  const [eurRate, setEurRate] = useState(() => localStorage.getItem(EUR_RATE_KEY) ?? '');
 
   // "syncing" pops up immediately and stays until superseded; "synced"/"error" then auto-dismiss
   // (error stays up longer, since a failure matters more than a routine success).
@@ -123,6 +125,10 @@ export default function App() {
   }, [googleClientId]);
 
   useEffect(() => {
+    localStorage.setItem(EUR_RATE_KEY, eurRate);
+  }, [eurRate]);
+
+  useEffect(() => {
     if (syncSpreadsheetId) {
       localStorage.setItem(SYNC_SPREADSHEET_ID_KEY, syncSpreadsheetId);
     } else {
@@ -196,6 +202,8 @@ export default function App() {
           onDisconnectGoogle={handleDisconnectGoogle}
           spreadsheetId={syncSpreadsheetId}
           onSync={handleSync}
+          eurRate={eurRate}
+          onEurRateChange={setEurRate}
         />
       );
     }
@@ -217,7 +225,7 @@ export default function App() {
     if (page === 'history') {
       return <History fillUps={fillUps} onSync={handleSync} syncEnabled={googleClientId.trim().length > 0} />;
     }
-    return <Dashboard stats={stats} onExport={handleExport} />;
+    return <Dashboard stats={stats} onExport={handleExport} eurRate={Number(eurRate) || null} />;
   }
 
   return (

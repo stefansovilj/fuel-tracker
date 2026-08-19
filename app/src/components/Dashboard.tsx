@@ -4,9 +4,17 @@ import { fixed2, type Stats } from '../lib/fuelCalc';
 interface Props {
   stats: Stats;
   onExport: () => void;
+  eurRate: number | null;
 }
 
-export function Dashboard({ stats, onExport }: Props) {
+function money(value: number): string {
+  return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+export function Dashboard({ stats, onExport, eurRate }: Props) {
+  const totalCostEur = eurRate ? stats.totalCost / eurRate : null;
+  const avgMonthlyCostEur = eurRate && stats.avgMonthlyCost !== null ? stats.avgMonthlyCost / eurRate : null;
+
   return (
     <>
       <div className="card">
@@ -20,17 +28,41 @@ export function Dashboard({ stats, onExport }: Props) {
             <div className="label">Total liters</div>
           </div>
           <div className="stat">
-            <div className="value">
-              {stats.totalCost
-                ? stats.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                : '—'}
-            </div>
-            <div className="label">Total spent</div>
+            <div className="value">{stats.totalCost ? money(stats.totalCost) : '—'}</div>
+            <div className="label">Total spent (DIN)</div>
           </div>
           <div className="stat">
             <div className="value">{stats.avgConsumption !== null ? fixed2(stats.avgConsumption) : '—'}</div>
             <div className="label">Avg L/100km</div>
           </div>
+          <div className="stat">
+            <div className="value">{stats.fillUpCount || '—'}</div>
+            <div className="label">Fill-ups</div>
+          </div>
+          <div className="stat">
+            <div className="value">{stats.monthsTracked || '—'}</div>
+            <div className="label">Months tracked</div>
+          </div>
+          <div className="stat">
+            <div className="value">{stats.avgMonthlyKm !== null ? fixed2(stats.avgMonthlyKm) : '—'}</div>
+            <div className="label">Avg monthly km</div>
+          </div>
+          <div className="stat">
+            <div className="value">{stats.avgMonthlyCost !== null ? money(stats.avgMonthlyCost) : '—'}</div>
+            <div className="label">Avg monthly cost (DIN)</div>
+          </div>
+          {totalCostEur !== null && (
+            <div className="stat">
+              <div className="value">{money(totalCostEur)}</div>
+              <div className="label">Total spent (EUR)</div>
+            </div>
+          )}
+          {avgMonthlyCostEur !== null && (
+            <div className="stat">
+              <div className="value">{money(avgMonthlyCostEur)}</div>
+              <div className="label">Avg monthly cost (EUR)</div>
+            </div>
+          )}
         </div>
         <button type="button" className="secondary" onClick={onExport} disabled={!stats.series.length}>
           Export to Excel
@@ -51,7 +83,7 @@ export function Dashboard({ stats, onExport }: Props) {
       </div>
 
       <div className="card">
-        <h2>Cost per month</h2>
+        <h2>Cost per month (DIN)</h2>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={stats.monthlySeries}>
             <CartesianGrid strokeDasharray="3 3" />
@@ -59,6 +91,32 @@ export function Dashboard({ stats, onExport }: Props) {
             <YAxis tick={{ fontSize: 11 }} />
             <Tooltip formatter={(value) => fixed2(Number(value))} />
             <Bar dataKey="cost" fill="#2b6cff" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="card">
+        <h2>Distance per year (km)</h2>
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={stats.yearlySeries}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="year" tick={{ fontSize: 11 }} />
+            <YAxis tick={{ fontSize: 11 }} />
+            <Tooltip />
+            <Bar dataKey="km" fill="#2b6cff" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="card">
+        <h2>Cost per year (DIN)</h2>
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={stats.yearlySeries}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="year" tick={{ fontSize: 11 }} />
+            <YAxis tick={{ fontSize: 11 }} />
+            <Tooltip formatter={(value) => fixed2(Number(value))} />
+            <Bar dataKey="cost" fill="#17752f" />
           </BarChart>
         </ResponsiveContainer>
       </div>

@@ -218,3 +218,15 @@ th {
   font-weight: 600;
   font-size: 12px;
 }
+
+/* Mobile layout above is completely untouched below this width — this only widens the
+   container (and gives the stat tiles more columns to spread into) once there's enough room
+   for it to matter. Placed last so it wins over the base .app/.stats-grid rules above it. */
+@media (min-width: 700px) {
+  .app {
+    max-width: 960px;
+  }
+  .stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

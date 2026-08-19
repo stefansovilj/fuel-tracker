@@ -14,6 +14,8 @@ interface Props {
   onDisconnectGoogle: () => void;
   spreadsheetId: string | null;
   onSync: () => Promise<{ spreadsheetUrl: string }>;
+  eurRate: string;
+  onEurRateChange: (value: string) => void;
 }
 
 export function Settings({
@@ -28,6 +30,8 @@ export function Settings({
   onDisconnectGoogle,
   spreadsheetId,
   onSync,
+  eurRate,
+  onEurRateChange,
 }: Props) {
   const [newName, setNewName] = useState('');
   const [adding, setAdding] = useState(false);
@@ -145,6 +149,23 @@ export function Settings({
             </a>
           </p>
         )}
+      </div>
+
+      <div className="card">
+        <h2>Currency</h2>
+        <label htmlFor="eurRate">DIN → EUR rate (e.g. 117.5)</label>
+        <input
+          id="eurRate"
+          type="number"
+          step="0.01"
+          placeholder="Leave blank to hide EUR figures"
+          value={eurRate}
+          onChange={(e) => onEurRateChange(e.target.value)}
+        />
+        <p className="empty-hint">
+          Set this to show EUR alongside DIN on the Dashboard. Update it yourself whenever you
+          want a fresher rate — the app doesn't fetch one automatically.
+        </p>
       </div>
     </>
   );

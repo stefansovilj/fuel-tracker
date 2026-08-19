@@ -159,28 +159,53 @@ export interface MonthlyPoint {
   avgConsumption: number;
 }
 
+export interface YearlyPoint {
+  year: string;
+  km: number;
+  cost: number;
+}
+
 export interface Stats {
   totalKm: number;
   totalLiters: number;
   totalCost: number;
   avgConsumption: number | null;
+  fillUpCount: number;
+  monthsTracked: number;
+  avgMonthlyKm: number | null;
+  avgMonthlyCost: number | null;
   series: SeriesPoint[];
   monthlySeries: MonthlyPoint[];
+  yearlySeries: YearlyPoint[];
 }
 
 export function aggregateStats(fillUps: FillUp[]): Stats {
   const withDistance = fillUps.filter((f): f is FillUp & { distance: number } => !!f.distance);
 
-  let totalKm = 0;
+  // Liters/cost/fill-up count include every logged fill-up — even the very first one, which
+  // never has a computed distance (there's no previous odometer to diff against) but still
+  // cost real money. Distance-dependent figures (km, consumption, per-year km) only ever come
+  // from entries where a distance could actually be computed.
   let totalLiters = 0;
   let totalCost = 0;
+  const yearly = new Map<string, { km: number; cost: number }>();
+
+  for (const f of fillUps) {
+    totalLiters += f.liters;
+    totalCost += f.totalPrice;
+
+    const year = f.date.split('.').pop() ?? '';
+    const bucket = yearly.get(year) ?? { km: 0, cost: 0 };
+    bucket.cost += f.totalPrice;
+    yearly.set(year, bucket);
+  }
+
+  let totalKm = 0;
   const series: SeriesPoint[] = [];
   const monthly = new Map<string, { liters: number; distance: number; cost: number }>();
 
   for (const f of withDistance) {
     totalKm += f.distance;
-    totalLiters += f.liters;
-    totalCost += f.totalPrice;
 
     series.push({
       date: f.date,
@@ -188,11 +213,16 @@ export function aggregateStats(fillUps: FillUp[]): Stats {
       pricePerLiter: f.pricePerLiter,
     });
 
-    const bucket = monthly.get(f.month) ?? { liters: 0, distance: 0, cost: 0 };
-    bucket.liters += f.liters;
-    bucket.distance += f.distance;
-    bucket.cost += f.totalPrice;
-    monthly.set(f.month, bucket);
+    const monthBucket = monthly.get(f.month) ?? { liters: 0, distance: 0, cost: 0 };
+    monthBucket.liters += f.liters;
+    monthBucket.distance += f.distance;
+    monthBucket.cost += f.totalPrice;
+    monthly.set(f.month, monthBucket);
+
+    const year = f.date.split('.').pop() ?? '';
+    const yearBucket = yearly.get(year) ?? { km: 0, cost: 0 };
+    yearBucket.km += f.distance;
+    yearly.set(year, yearBucket);
   }
 
   const monthlySeries: MonthlyPoint[] = Array.from(monthly.entries())
@@ -207,12 +237,30 @@ export function aggregateStats(fillUps: FillUp[]): Stats {
       avgConsumption: round2((bucket.liters / bucket.distance) * 100),
     }));
 
+  const yearlySeries: YearlyPoint[] = Array.from(yearly.entries())
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .map(([year, bucket]) => ({ year, km: bucket.km, cost: round2(bucket.cost) }));
+
+  const dates = fillUps.map((f) => parseStoredDate(f.date)).filter((d) => !Number.isNaN(d.getTime()));
+  let monthsTracked = 0;
+  if (dates.length) {
+    const earliest = new Date(Math.min(...dates.map((d) => d.getTime())));
+    const latest = new Date(Math.max(...dates.map((d) => d.getTime())));
+    monthsTracked =
+      (latest.getFullYear() - earliest.getFullYear()) * 12 + (latest.getMonth() - earliest.getMonth()) + 1;
+  }
+
   return {
     totalKm,
     totalLiters: round2(totalLiters),
     totalCost: round2(totalCost),
     avgConsumption: totalKm ? round2((totalLiters / totalKm) * 100) : null,
+    fillUpCount: fillUps.length,
+    monthsTracked,
+    avgMonthlyKm: monthsTracked ? round2(totalKm / monthsTracked) : null,
+    avgMonthlyCost: monthsTracked ? round2(totalCost / monthsTracked) : null,
     series,
     monthlySeries,
+    yearlySeries,
   };
 }
