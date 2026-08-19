@@ -12,9 +12,8 @@ interface Props {
   isGoogleConnected: boolean;
   onConnectGoogle: () => Promise<void>;
   onDisconnectGoogle: () => void;
-  spreadsheetId: string;
-  onSpreadsheetIdChange: (value: string) => void;
-  onPullVehicles: () => Promise<void>;
+  spreadsheetId: string | null;
+  onSync: () => Promise<{ spreadsheetUrl: string }>;
 }
 
 export function Settings({
@@ -28,16 +27,14 @@ export function Settings({
   onConnectGoogle,
   onDisconnectGoogle,
   spreadsheetId,
-  onSpreadsheetIdChange,
-  onPullVehicles,
+  onSync,
 }: Props) {
   const [newName, setNewName] = useState('');
   const [adding, setAdding] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
-  const [pulling, setPulling] = useState(false);
-  const [pullError, setPullError] = useState<string | null>(null);
-  const [pullMessage, setPullMessage] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   async function handleAdd() {
     if (!newName.trim()) return;
@@ -62,17 +59,15 @@ export function Settings({
     }
   }
 
-  async function handlePull() {
-    setPulling(true);
-    setPullError(null);
-    setPullMessage(null);
+  async function handleSyncNow() {
+    setSyncing(true);
+    setSyncError(null);
     try {
-      await onPullVehicles();
-      setPullMessage('Vehicle list updated from the spreadsheet.');
+      await onSync();
     } catch (err) {
-      setPullError(err instanceof Error ? err.message : String(err));
+      setSyncError(err instanceof Error ? err.message : String(err));
     } finally {
-      setPulling(false);
+      setSyncing(false);
     }
   }
 
@@ -128,36 +123,28 @@ export function Settings({
         )}
         {connectError && <div className="message error">{connectError}</div>}
 
-        <label htmlFor="spreadsheetId">Google Sheet</label>
-        <input
-          id="spreadsheetId"
-          type="text"
-          placeholder="Paste the spreadsheet URL or ID from another device, or leave blank to create a new one"
-          value={spreadsheetId}
-          onChange={(e) => onSpreadsheetIdChange(e.target.value)}
-        />
-        {spreadsheetId && (
-          <p className="empty-hint">
-            <a href={spreadsheetUrl(spreadsheetId)} target="_blank" rel="noreferrer">
-              Open in Google Sheets
-            </a>
-          </p>
-        )}
+        <p className="empty-hint">
+          On a new device, just paste the same Client ID and connect — the app finds your existing
+          "Fuel Tracker Sync" spreadsheet by name automatically, no ID to copy.
+        </p>
 
         <button
           type="button"
           className="secondary"
-          disabled={pulling || !googleClientId.trim() || !spreadsheetId.trim()}
-          onClick={handlePull}
+          disabled={syncing || !googleClientId.trim()}
+          onClick={handleSyncNow}
         >
-          {pulling ? 'Pulling…' : 'Pull vehicles from Google Sheets'}
+          {syncing ? 'Syncing…' : 'Sync now'}
         </button>
-        <p className="empty-hint">
-          On a new device: paste the same Client ID and Google Sheet above, then use this to bring
-          in your vehicle list before syncing fill-ups from History.
-        </p>
-        {pullError && <div className="message error">{pullError}</div>}
-        {pullMessage && <div className="message success">{pullMessage}</div>}
+        {syncError && <div className="message error">{syncError}</div>}
+
+        {spreadsheetId && (
+          <p className="empty-hint">
+            <a href={spreadsheetUrl(spreadsheetId)} target="_blank" rel="noreferrer">
+              Open synced spreadsheet
+            </a>
+          </p>
+        )}
       </div>
     </>
   );

@@ -3,6 +3,7 @@ import type { FillUp, Vehicle } from './fuelCalc';
 import { recomputeFillUps } from './fuelCalc';
 import { toExportRows, EXPORT_COLUMNS } from './exportFormat';
 import { ensureAccessToken } from './googleAuth';
+import { findSpreadsheetByName } from './googleDrive';
 import {
   appendRows,
   createSpreadsheet,
@@ -15,6 +16,15 @@ import {
 
 const VEHICLES_TAB = 'Vehicles';
 const SPREADSHEET_TITLE = 'Fuel Tracker Sync';
+
+async function resolveSpreadsheetId(token: string, cachedId: string | null): Promise<string> {
+  if (cachedId) return cachedId;
+
+  const found = await findSpreadsheetByName(token, SPREADSHEET_TITLE);
+  if (found) return found;
+
+  return createSpreadsheet(token, SPREADSHEET_TITLE, VEHICLES_TAB);
+}
 
 async function syncVehiclesTab(
   token: string,
@@ -99,47 +109,43 @@ export interface SyncResult {
   spreadsheetId: string;
   spreadsheetUrl: string;
   vehicles: Vehicle[];
+  activeVehicleId: string | null;
   fillUps: FillUp[];
 }
 
 /**
- * Pulls (and pushes anything locally new) the Vehicles tab only — used on a device that doesn't
- * have an active vehicle selected yet, so it can discover what vehicles already exist in an
- * existing spreadsheet before a specific vehicle's fill-ups can be synced.
+ * The single sync entry point: resolves the spreadsheet (by cached ID, else by name via Drive
+ * search, else creates it), reconciles the Vehicles tab (append-only), then — if an active
+ * vehicle is known or can be defaulted to the first pulled one — reconciles that vehicle's
+ * fill-ups tab the same way. No spreadsheet ID ever needs to be entered manually.
  */
-export async function pullVehicles(options: {
-  clientId: string;
-  spreadsheetId: string;
-  allVehicles: Vehicle[];
-}): Promise<Vehicle[]> {
-  const token = await ensureAccessToken(options.clientId);
-  const vehicles = await syncVehiclesTab(token, options.spreadsheetId, options.allVehicles);
-  await replaceVehicles(vehicles);
-  return vehicles;
-}
-
-export async function syncActiveVehicle(options: {
+export async function sync(options: {
   clientId: string;
   spreadsheetId: string | null;
-  vehicle: Vehicle;
+  activeVehicleId: string | null;
   allVehicles: Vehicle[];
 }): Promise<SyncResult> {
   const token = await ensureAccessToken(options.clientId);
-
-  const spreadsheetId =
-    options.spreadsheetId ?? (await createSpreadsheet(token, SPREADSHEET_TITLE, VEHICLES_TAB));
+  const spreadsheetId = await resolveSpreadsheetId(token, options.spreadsheetId);
 
   const vehicles = await syncVehiclesTab(token, spreadsheetId, options.allVehicles);
   await replaceVehicles(vehicles);
 
-  const recomputedFillUps = await syncFillUpsTab(token, spreadsheetId, options.vehicle);
-  await replaceFillUpsForVehicle(options.vehicle.id, recomputedFillUps);
-  const fillUps = await getFillUps(options.vehicle.id);
+  const activeVehicle =
+    vehicles.find((v) => v.id === options.activeVehicleId) ?? vehicles[0] ?? null;
+
+  let fillUps: FillUp[] = [];
+  if (activeVehicle) {
+    const recomputedFillUps = await syncFillUpsTab(token, spreadsheetId, activeVehicle);
+    await replaceFillUpsForVehicle(activeVehicle.id, recomputedFillUps);
+    fillUps = await getFillUps(activeVehicle.id);
+  }
 
   return {
     spreadsheetId,
     spreadsheetUrl: spreadsheetUrl(spreadsheetId),
     vehicles,
+    activeVehicleId: activeVehicle?.id ?? null,
     fillUps,
   };
 }

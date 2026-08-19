@@ -15,7 +15,10 @@ declare global {
   }
 }
 
-const SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
+// drive.metadata.readonly lets the app find the sync spreadsheet by name (Drive file search)
+// instead of requiring a spreadsheet ID to be copy-pasted between devices.
+const SCOPE =
+  'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.metadata.readonly';
 const GIS_SRC = 'https://accounts.google.com/gsi/client';
 const TOKEN_STORAGE_KEY = 'fuel-tracker:googleToken';
 
@@ -43,6 +46,7 @@ function loadGis(): Promise<void> {
 interface CachedToken {
   accessToken: string;
   expiresAt: number;
+  scope: string;
 }
 
 function readStoredToken(): CachedToken | null {
@@ -51,6 +55,9 @@ function readStoredToken(): CachedToken | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<CachedToken>;
     if (typeof parsed.accessToken !== 'string' || typeof parsed.expiresAt !== 'number') return null;
+    // A token granted under an older/narrower scope (e.g. before Drive search was added) can't
+    // be trusted for the current scope — treat it as absent so the user gets a fresh consent.
+    if (parsed.scope !== SCOPE) return null;
     return parsed as CachedToken;
   } catch {
     return null;
@@ -109,6 +116,7 @@ export async function ensureAccessToken(clientId: string): Promise<string> {
         const token: CachedToken = {
           accessToken: response.access_token,
           expiresAt: Date.now() + Number(response.expires_in ?? 3600) * 1000,
+          scope: SCOPE,
         };
         cachedToken = token;
         writeStoredToken(token);

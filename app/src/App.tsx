@@ -3,8 +3,7 @@ import { addFillUp, addVehicle, getFillUps, getVehicles } from './db';
 import { aggregateStats, type FillUp, type Vehicle } from './lib/fuelCalc';
 import { exportFillUpsToExcel } from './lib/excelExport';
 import { ensureAccessToken, disconnect as disconnectGoogle, isConnected as isGoogleConnected } from './lib/googleAuth';
-import { syncActiveVehicle, pullVehicles } from './lib/sync';
-import { extractSpreadsheetId } from './lib/googleSheetsSync';
+import { sync } from './lib/sync';
 import { Settings } from './components/Settings';
 import { FillUpForm } from './components/FillUpForm';
 import { History } from './components/History';
@@ -34,50 +33,51 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
 
   function canAutoSync(): boolean {
-    // No spreadsheetId requirement here — syncActiveVehicle creates one automatically on first
-    // use, and that doesn't need a popup, just an already-valid connection.
+    // No spreadsheetId requirement here — sync() discovers/creates one automatically, and
+    // that doesn't need a popup, just an already-valid connection.
     return Boolean(googleClientId.trim()) && isGoogleConnected();
   }
 
-  async function runSync(vehicle: Vehicle, allVehicles: Vehicle[]) {
-    const result = await syncActiveVehicle({
+  async function runSync(allVehicles: Vehicle[]) {
+    const result = await sync({
       clientId: googleClientId,
       spreadsheetId: syncSpreadsheetId,
-      vehicle,
+      activeVehicleId: selectedVehicleId,
       allVehicles,
     });
     setGoogleConnected(true);
     setSyncSpreadsheetId(result.spreadsheetId);
     setVehicles(result.vehicles);
+    if (result.activeVehicleId && result.activeVehicleId !== selectedVehicleId) {
+      setSelectedVehicleId(result.activeVehicleId);
+    }
     setFillUps(result.fillUps);
     return result;
   }
 
-  async function runAutoSync(vehicle: Vehicle, allVehicles: Vehicle[]) {
+  async function runAutoSync(allVehicles: Vehicle[]) {
     if (!canAutoSync()) return;
     setSyncStatus('syncing');
     try {
-      await runSync(vehicle, allVehicles);
+      await runSync(allVehicles);
       setSyncStatus('synced');
     } catch {
       setSyncStatus('error');
     }
   }
 
-  // On load: if we're still within the persisted token's lifetime, sync automatically —
-  // this can never pop up a fresh sign-in (browsers only allow that from a direct click), so
-  // it just quietly does nothing once the token's expired until the user reconnects.
+  // On load: if we're still within the persisted token's lifetime, sync automatically — this
+  // also discovers the spreadsheet by name and pulls a vehicle list on a brand-new device with
+  // nothing local yet. It can never pop up a fresh sign-in (browsers only allow that from a
+  // direct click), so it just quietly does nothing once the token's expired until reconnected.
   useEffect(() => {
     getVehicles().then((list) => {
       setVehicles(list);
       const stillValid = list.some((v) => v.id === selectedVehicleId);
-      const resolvedId = stillValid ? selectedVehicleId : list.length ? list[0].id : null;
       if (!stillValid) {
-        setSelectedVehicleId(resolvedId);
+        setSelectedVehicleId(list.length ? list[0].id : null);
       }
-
-      const vehicle = list.find((v) => v.id === resolvedId);
-      if (vehicle) void runAutoSync(vehicle, list);
+      void runAutoSync(list);
     });
   }, []);
 
@@ -123,9 +123,7 @@ export default function App() {
     if (!selectedVehicleId) throw new Error('Select a vehicle first.');
     await addFillUp({ vehicleId: selectedVehicleId, ...data });
     setFillUps(await getFillUps(selectedVehicleId));
-
-    const vehicle = vehicles.find((v) => v.id === selectedVehicleId);
-    if (vehicle) void runAutoSync(vehicle, vehicles);
+    void runAutoSync(vehicles);
   }
 
   function handleExport() {
@@ -137,6 +135,7 @@ export default function App() {
   async function handleConnectGoogle() {
     await ensureAccessToken(googleClientId);
     setGoogleConnected(true);
+    void runAutoSync(vehicles);
   }
 
   function handleDisconnectGoogle() {
@@ -144,33 +143,10 @@ export default function App() {
     setGoogleConnected(false);
   }
 
-  function handleSpreadsheetIdChange(value: string) {
-    setSyncSpreadsheetId(value.trim() ? extractSpreadsheetId(value) : null);
-  }
-
-  async function handlePullVehicles() {
-    if (!syncSpreadsheetId) throw new Error('Paste a Google Sheet ID first.');
-
-    const pulled = await pullVehicles({
-      clientId: googleClientId,
-      spreadsheetId: syncSpreadsheetId,
-      allVehicles: vehicles,
-    });
-
-    setGoogleConnected(true);
-    setVehicles(pulled);
-    if (pulled.length && !pulled.some((v) => v.id === selectedVehicleId)) {
-      setSelectedVehicleId(pulled[0].id);
-    }
-  }
-
   async function handleSync(): Promise<{ spreadsheetUrl: string }> {
-    const vehicle = vehicles.find((v) => v.id === selectedVehicleId);
-    if (!vehicle) throw new Error('Select a vehicle first.');
-
     setSyncStatus('syncing');
     try {
-      const result = await runSync(vehicle, vehicles);
+      const result = await runSync(vehicles);
       setSyncStatus('synced');
       return { spreadsheetUrl: result.spreadsheetUrl };
     } catch (err) {
@@ -195,9 +171,8 @@ export default function App() {
           isGoogleConnected={googleConnected}
           onConnectGoogle={handleConnectGoogle}
           onDisconnectGoogle={handleDisconnectGoogle}
-          spreadsheetId={syncSpreadsheetId ?? ''}
-          onSpreadsheetIdChange={handleSpreadsheetIdChange}
-          onPullVehicles={handlePullVehicles}
+          spreadsheetId={syncSpreadsheetId}
+          onSync={handleSync}
         />
       );
     }
