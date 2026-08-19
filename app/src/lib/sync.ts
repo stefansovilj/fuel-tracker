@@ -8,6 +8,7 @@ import {
   createSpreadsheet,
   ensureTab,
   readTab,
+  removeDefaultSheetIfEmpty,
   sanitizeTabName,
   spreadsheetUrl,
 } from './googleSheetsSync';
@@ -21,6 +22,7 @@ async function syncVehiclesTab(
   localVehicles: Vehicle[]
 ): Promise<Vehicle[]> {
   await ensureTab(token, spreadsheetId, VEHICLES_TAB);
+  await removeDefaultSheetIfEmpty(token, spreadsheetId);
   let rows = await readTab(token, spreadsheetId, VEHICLES_TAB);
 
   if (rows.length === 0) {
@@ -125,7 +127,7 @@ export async function syncActiveVehicle(options: {
   const token = await ensureAccessToken(options.clientId);
 
   const spreadsheetId =
-    options.spreadsheetId ?? (await createSpreadsheet(token, SPREADSHEET_TITLE));
+    options.spreadsheetId ?? (await createSpreadsheet(token, SPREADSHEET_TITLE, VEHICLES_TAB));
 
   const vehicles = await syncVehiclesTab(token, spreadsheetId, options.allVehicles);
   await replaceVehicles(vehicles);

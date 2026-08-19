@@ -24,17 +24,40 @@ function quoteRange(tabName: string): string {
   return `'${tabName.replace(/'/g, "''")}'`;
 }
 
-export async function createSpreadsheet(token: string, title: string): Promise<string> {
+export async function createSpreadsheet(
+  token: string,
+  title: string,
+  firstTabTitle: string
+): Promise<string> {
+  // Naming the first sheet ourselves avoids Google's default, unused "Sheet1" tab.
   const data = await sheetsFetch(token, '', {
     method: 'POST',
-    body: JSON.stringify({ properties: { title } }),
+    body: JSON.stringify({
+      properties: { title },
+      sheets: [{ properties: { title: firstTabTitle } }],
+    }),
   });
   return data.spreadsheetId as string;
 }
 
+export interface TabMeta {
+  title: string;
+  sheetId: number;
+}
+
+export async function getTabs(token: string, spreadsheetId: string): Promise<TabMeta[]> {
+  const data = await sheetsFetch(
+    token,
+    `/${spreadsheetId}?fields=sheets.properties.title,sheets.properties.sheetId`
+  );
+  return (data.sheets ?? []).map((s: { properties: { title: string; sheetId: number } }) => ({
+    title: s.properties.title,
+    sheetId: s.properties.sheetId,
+  }));
+}
+
 export async function getTabNames(token: string, spreadsheetId: string): Promise<string[]> {
-  const data = await sheetsFetch(token, `/${spreadsheetId}?fields=sheets.properties.title`);
-  return (data.sheets ?? []).map((s: { properties: { title: string } }) => s.properties.title);
+  return (await getTabs(token, spreadsheetId)).map((t) => t.title);
 }
 
 export async function ensureTab(token: string, spreadsheetId: string, tabName: string): Promise<void> {
@@ -44,6 +67,25 @@ export async function ensureTab(token: string, spreadsheetId: string, tabName: s
     method: 'POST',
     body: JSON.stringify({ requests: [{ addSheet: { properties: { title: tabName } } }] }),
   });
+}
+
+export async function deleteTab(token: string, spreadsheetId: string, sheetId: number): Promise<void> {
+  await sheetsFetch(token, `/${spreadsheetId}:batchUpdate`, {
+    method: 'POST',
+    body: JSON.stringify({ requests: [{ deleteSheet: { sheetId } }] }),
+  });
+}
+
+/** Removes Google's default "Sheet1" tab if it's still present and untouched — safe as long as at least one other tab already exists. */
+export async function removeDefaultSheetIfEmpty(token: string, spreadsheetId: string): Promise<void> {
+  const tabs = await getTabs(token, spreadsheetId);
+  if (tabs.length < 2) return;
+  const defaultTab = tabs.find((t) => t.title === 'Sheet1');
+  if (!defaultTab) return;
+  const rows = await readTab(token, spreadsheetId, 'Sheet1');
+  if (rows.length === 0) {
+    await deleteTab(token, spreadsheetId, defaultTab.sheetId);
+  }
 }
 
 export async function readTab(
