@@ -8,6 +8,7 @@ import { Settings } from './components/Settings';
 import { FillUpForm } from './components/FillUpForm';
 import { History } from './components/History';
 import { Dashboard } from './components/Dashboard';
+import { Toast } from './components/Toast';
 
 type Page = 'form' | 'history' | 'dashboard' | 'settings';
 type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
@@ -31,6 +32,18 @@ export default function App() {
   );
   const [googleConnected, setGoogleConnected] = useState(() => isGoogleConnected());
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
+  const [toastVisible, setToastVisible] = useState(false);
+
+  // "syncing" pops up immediately and stays until superseded; "synced"/"error" then auto-dismiss
+  // (error stays up longer, since a failure matters more than a routine success).
+  useEffect(() => {
+    if (syncStatus === 'idle') return;
+    setToastVisible(true);
+    if (syncStatus === 'syncing') return;
+    const delay = syncStatus === 'error' ? 5000 : 2500;
+    const timer = setTimeout(() => setToastVisible(false), delay);
+    return () => clearTimeout(timer);
+  }, [syncStatus]);
 
   function canAutoSync(): boolean {
     // No spreadsheetId requirement here — sync() discovers/creates one automatically, and
@@ -201,11 +214,8 @@ export default function App() {
     <div className="app">
       <h1>Fuel Tracker{activeVehicle ? ` — ${activeVehicle.name}` : ''}</h1>
       {googleClientId.trim() && (
-        <p className={`sync-status ${syncStatus}`}>
-          {syncStatus === 'syncing' && 'Syncing…'}
-          {syncStatus === 'synced' && 'Synced'}
-          {syncStatus === 'error' && 'Sync failed — open History to retry'}
-          {syncStatus === 'idle' && (googleConnected ? 'Connected' : 'Not connected')}
+        <p className={`sync-status ${googleConnected ? 'connected' : ''}`}>
+          {googleConnected ? 'Connected' : 'Not connected'}
         </p>
       )}
       <nav>
@@ -224,6 +234,20 @@ export default function App() {
       </nav>
 
       {renderPage()}
+
+      {toastVisible && (
+        <Toast
+          type={syncStatus === 'error' ? 'error' : syncStatus === 'synced' ? 'success' : 'info'}
+          message={
+            syncStatus === 'syncing'
+              ? 'Syncing with Google Sheets…'
+              : syncStatus === 'synced'
+                ? 'Synced with Google Sheets'
+                : 'Sync failed — open History or Settings to retry'
+          }
+          onDismiss={() => setToastVisible(false)}
+        />
+      )}
     </div>
   );
 }
