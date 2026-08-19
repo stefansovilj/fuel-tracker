@@ -29,6 +29,17 @@ function quoteRange(tabName: string): string {
   return `'${tabName.replace(/'/g, "''")}'`;
 }
 
+/** Builds a fully-qualified A1 range like `'Tab Name'!D5` for use with the values:batchUpdate endpoint. */
+export function buildRange(tabName: string, a1: string): string {
+  return `${quoteRange(tabName)}!${a1}`;
+}
+
+function parseStartRow(updatedRange: string): number | null {
+  const rangePart = updatedRange.slice(updatedRange.lastIndexOf('!') + 1);
+  const match = rangePart.match(/^[A-Z]+(\d+)/);
+  return match ? Number(match[1]) : null;
+}
+
 export async function createSpreadsheet(
   token: string,
   title: string,
@@ -106,19 +117,38 @@ export async function readTab(
   return data.values ?? [];
 }
 
+/** Appends rows as literal values (never interpreted as formulas/dates) and returns the row
+ * number the block started at, so formula cells for those same rows can be filled in afterward. */
 export async function appendRows(
   token: string,
   spreadsheetId: string,
   tabName: string,
   rows: unknown[][]
-): Promise<void> {
-  if (!rows.length) return;
+): Promise<number | null> {
+  if (!rows.length) return null;
   const range = encodeURIComponent(quoteRange(tabName));
-  await sheetsFetch(
+  const data = await sheetsFetch(
     token,
     `/${spreadsheetId}/values/${range}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
     { method: 'POST', body: JSON.stringify({ values: rows }) }
   );
+  const updatedRange = data.updates?.updatedRange as string | undefined;
+  return updatedRange ? parseStartRow(updatedRange) : null;
+}
+
+/** Writes formulas (or any values) into specific ranges, interpreted the way typing them into
+ * the UI would be — used only for the derived columns, never for raw data, so a plain-text date
+ * like "2026-07-09" elsewhere in the row is never at risk of being reinterpreted as a real date. */
+export async function batchUpdateValues(
+  token: string,
+  spreadsheetId: string,
+  data: Array<{ range: string; values: unknown[][] }>
+): Promise<void> {
+  if (!data.length) return;
+  await sheetsFetch(token, `/${spreadsheetId}/values:batchUpdate`, {
+    method: 'POST',
+    body: JSON.stringify({ valueInputOption: 'USER_ENTERED', data }),
+  });
 }
 
 export function spreadsheetUrl(spreadsheetId: string): string {

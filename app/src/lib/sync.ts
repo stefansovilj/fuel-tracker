@@ -1,11 +1,13 @@
 import { getFillUps, replaceFillUpsForVehicle, replaceVehicles } from '../db';
 import type { FillUp, Vehicle } from './fuelCalc';
 import { recomputeFillUps } from './fuelCalc';
-import { toExportRows, EXPORT_COLUMNS } from './exportFormat';
+import { EXPORT_COLUMNS } from './exportFormat';
 import { ensureAccessToken } from './googleAuth';
 import { findSpreadsheetByName } from './googleDrive';
 import {
   appendRows,
+  batchUpdateValues,
+  buildRange,
   createSpreadsheet,
   ensureTab,
   readTab,
@@ -16,6 +18,34 @@ import {
 
 const VEHICLES_TAB = 'Vehicles';
 const SPREADSHEET_TITLE = 'Fuel Tracker Sync';
+
+function columnLetter(index: number): string {
+  return String.fromCharCode(65 + index);
+}
+
+const DATE_COL = columnLetter(EXPORT_COLUMNS.indexOf('Date'));
+const ODOMETER_COL = columnLetter(EXPORT_COLUMNS.indexOf('Odometer'));
+const LITERS_COL = columnLetter(EXPORT_COLUMNS.indexOf('Liters'));
+const DISTANCE_COL = columnLetter(EXPORT_COLUMNS.indexOf('Distance'));
+const TOTAL_PRICE_COL = columnLetter(EXPORT_COLUMNS.indexOf('TotalPrice'));
+const CONSUMPTION_COL = columnLetter(EXPORT_COLUMNS.indexOf('ConsumptionL/100km'));
+const MONTH_COL = columnLetter(EXPORT_COLUMNS.indexOf('Month'));
+
+// Derived columns are written as live formulas referencing the raw columns, so the Sheet keeps
+// recalculating itself if a raw value is ever hand-edited — not just the app's own local view.
+// Row 2 (the very first data row in a tab) has no previous odometer, so Distance stays blank.
+function distanceFormula(row: number): string {
+  return row <= 2 ? '' : `=${ODOMETER_COL}${row}-${ODOMETER_COL}${row - 1}`;
+}
+function consumptionFormula(row: number): string {
+  return `=IF(OR(${DISTANCE_COL}${row}="",${DISTANCE_COL}${row}=0),"",${LITERS_COL}${row}/${DISTANCE_COL}${row}*100)`;
+}
+function pricePerLiterFormula(row: number): string {
+  return `=IF(${LITERS_COL}${row}=0,"",${TOTAL_PRICE_COL}${row}/${LITERS_COL}${row})`;
+}
+function monthFormula(row: number): string {
+  return `=MID(${DATE_COL}${row},6,2)&"."&LEFT(${DATE_COL}${row},4)`;
+}
 
 async function resolveSpreadsheetId(token: string, cachedId: string | null): Promise<string> {
   if (cachedId) return cachedId;
@@ -80,9 +110,33 @@ async function syncFillUpsTab(
   const newFillUps = localFillUps.filter((f) => !existingKeys.has(`${f.date}|${f.odometer}`));
 
   if (newFillUps.length) {
-    const exportRows = toExportRows(newFillUps);
-    const arrayRows = exportRows.map((row) => EXPORT_COLUMNS.map((col) => row[col]));
-    await appendRows(token, spreadsheetId, tabName, arrayRows);
+    // Only the raw columns are written as literal values — Distance/Consumption/PricePerLiter/
+    // Month are left blank here and filled in right after as formulas (see below), so the Sheet
+    // itself stays self-consistent even if a raw value gets hand-edited later.
+    const rawRows = newFillUps.map((f) => {
+      const row: unknown[] = new Array(EXPORT_COLUMNS.length).fill('');
+      row[EXPORT_COLUMNS.indexOf('Date')] = f.date;
+      row[EXPORT_COLUMNS.indexOf('Odometer')] = f.odometer;
+      row[EXPORT_COLUMNS.indexOf('Liters')] = f.liters;
+      row[EXPORT_COLUMNS.indexOf('TotalPrice')] = f.totalPrice;
+      row[EXPORT_COLUMNS.indexOf('Notes')] = f.notes ?? '';
+      return row;
+    });
+
+    const startRow = await appendRows(token, spreadsheetId, tabName, rawRows);
+    if (startRow) {
+      const formulaUpdates = newFillUps.flatMap((_, i) => {
+        const row = startRow + i;
+        return [
+          { range: buildRange(tabName, `${DISTANCE_COL}${row}`), values: [[distanceFormula(row)]] },
+          {
+            range: buildRange(tabName, `${CONSUMPTION_COL}${row}:${MONTH_COL}${row}`),
+            values: [[consumptionFormula(row), pricePerLiterFormula(row), monthFormula(row)]],
+          },
+        ];
+      });
+      await batchUpdateValues(token, spreadsheetId, formulaUpdates);
+    }
   }
 
   const finalRows = newFillUps.length ? await readTab(token, spreadsheetId, tabName) : rows;
