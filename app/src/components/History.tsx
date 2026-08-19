@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { parseStoredDate, type FillUp } from '../lib/fuelCalc';
+import type { FillUp } from '../lib/fuelCalc';
 
 interface Props {
   fillUps: FillUp[];
@@ -12,9 +12,9 @@ export function History({ fillUps, onSync, syncEnabled }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [syncedUrl, setSyncedUrl] = useState<string | null>(null);
 
-  const rows = [...fillUps].sort(
-    (a, b) => parseStoredDate(b.date).getTime() - parseStoredDate(a.date).getTime()
-  );
+  // fillUps arrives in natural chronological (oldest-first) order — just reverse it for
+  // display rather than re-sorting by parsing the date string.
+  const rows = [...fillUps].reverse();
 
   async function handleSync() {
     setSyncing(true);

@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import { computeFillUp, parseStoredDate, type FillUp, type FillUpInput, type Vehicle } from './lib/fuelCalc';
+import { computeFillUp, type FillUp, type FillUpInput, type Vehicle } from './lib/fuelCalc';
 
 interface FuelTrackerDB extends DBSchema {
   vehicles: {
@@ -61,10 +61,13 @@ export async function addVehicle(name: string): Promise<Vehicle> {
   return vehicle;
 }
 
+// Deliberately not sorted by parsing the date string — insertion order (IndexedDB's natural
+// order for a non-unique index falls back to primary key / insertion order) is already
+// chronological, since replaceFillUpsForVehicle inserts in the Sheet's own row order and
+// addFillUp only ever appends a new-enough entry after validation.
 export async function getFillUps(vehicleId: string): Promise<FillUp[]> {
   const db = await getDb();
-  const rows = await db.getAllFromIndex('fillups', 'vehicleId', vehicleId);
-  return rows.sort((a, b) => parseStoredDate(a.date).getTime() - parseStoredDate(b.date).getTime());
+  return db.getAllFromIndex('fillups', 'vehicleId', vehicleId);
 }
 
 export async function addFillUp(input: FillUpInput): Promise<FillUp> {

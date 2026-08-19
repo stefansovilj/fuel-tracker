@@ -38,10 +38,10 @@ function distanceFormula(row: number): string {
   return row <= 2 ? '' : `=ROUND(${ODOMETER_COL}${row}-${ODOMETER_COL}${row - 1},0)`;
 }
 function consumptionFormula(row: number): string {
-  return `=IF(OR(${DISTANCE_COL}${row}="",${DISTANCE_COL}${row}=0),"",${LITERS_COL}${row}/${DISTANCE_COL}${row}*100)`;
+  return `=IF(OR(${DISTANCE_COL}${row}="",${DISTANCE_COL}${row}=0),"",ROUND(${LITERS_COL}${row}/${DISTANCE_COL}${row}*100,2))`;
 }
 function pricePerLiterFormula(row: number): string {
-  return `=IF(${LITERS_COL}${row}=0,"",${TOTAL_PRICE_COL}${row}/${LITERS_COL}${row})`;
+  return `=IF(${LITERS_COL}${row}=0,"",ROUND(${TOTAL_PRICE_COL}${row}/${LITERS_COL}${row},2))`;
 }
 // Date is stored as dd/mm/yyyy: month is characters 4-5, year is the last 4 characters.
 function monthFormula(row: number): string {

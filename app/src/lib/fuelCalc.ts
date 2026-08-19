@@ -113,14 +113,15 @@ export interface RawFillUpEntry {
  * is reflected correctly. Unlike computeFillUp, this never throws on out-of-order data —
  * a row that doesn't fit (e.g. a lower odometer than the previous one) just gets a null
  * distance/consumption instead of blocking the whole pull.
+ *
+ * Deliberately does NOT re-sort by parsing the date string — rows are processed in exactly the
+ * order given (the Sheet's own row order, which is always chronological since new rows are only
+ * ever appended at the end), so a date that's ambiguous or hard to parse can never scramble the
+ * sequence used for the previous-odometer chain.
  */
 export function recomputeFillUps(vehicleId: string, rawEntries: RawFillUpEntry[]): Omit<FillUp, 'id'>[] {
-  const sorted = [...rawEntries].sort(
-    (a, b) => parseStoredDate(a.date).getTime() - parseStoredDate(b.date).getTime() || a.odometer - b.odometer
-  );
-
   let previousOdometer: number | null = null;
-  return sorted.map((entry) => {
+  return rawEntries.map((entry) => {
     const odometer = Number(entry.odometer);
     const liters = Number(entry.liters);
     const totalPrice = Number(entry.totalPrice);
