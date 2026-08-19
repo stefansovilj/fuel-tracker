@@ -53,7 +53,9 @@ function deriveFields(
   previousOdometer: number | null
 ): Pick<FillUp, 'distance' | 'consumption' | 'pricePerLiter' | 'month'> {
   const distance =
-    previousOdometer !== null && odometer > previousOdometer ? odometer - previousOdometer : null;
+    previousOdometer !== null && odometer > previousOdometer
+      ? Math.round(odometer - previousOdometer)
+      : null;
   const consumption = distance ? round2((liters / distance) * 100) : null;
   const pricePerLiter = round2(totalPrice / liters);
   const month = formatMonth(date);

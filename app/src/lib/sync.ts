@@ -35,7 +35,7 @@ const MONTH_COL = columnLetter(EXPORT_COLUMNS.indexOf('Month'));
 // recalculating itself if a raw value is ever hand-edited — not just the app's own local view.
 // Row 2 (the very first data row in a tab) has no previous odometer, so Distance stays blank.
 function distanceFormula(row: number): string {
-  return row <= 2 ? '' : `=${ODOMETER_COL}${row}-${ODOMETER_COL}${row - 1}`;
+  return row <= 2 ? '' : `=ROUND(${ODOMETER_COL}${row}-${ODOMETER_COL}${row - 1},0)`;
 }
 function consumptionFormula(row: number): string {
   return `=IF(OR(${DISTANCE_COL}${row}="",${DISTANCE_COL}${row}=0),"",${LITERS_COL}${row}/${DISTANCE_COL}${row}*100)`;
@@ -46,6 +46,21 @@ function pricePerLiterFormula(row: number): string {
 // Date is stored as dd/mm/yyyy: month is characters 4-5, year is the last 4 characters.
 function monthFormula(row: number): string {
   return `=MID(${DATE_COL}${row},4,2)&"."&RIGHT(${DATE_COL}${row},4)`;
+}
+
+// If a Date cell was ever typed directly into the Sheet UI (rather than written by this app),
+// Sheets recognizes it as a real date and stores it as a serial number (days since 30 Dec 1899)
+// instead of the plain dd/mm/yyyy text the app writes — UNFORMATTED_VALUE hands that number back
+// as-is. Convert it back to text here so a manually-typed date still parses correctly.
+function normalizeDateCell(value: string | number | boolean): string {
+  if (typeof value === 'number') {
+    const ms = Date.UTC(1899, 11, 30) + value * 86400000;
+    const d = new Date(ms);
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    return `${dd}/${mm}/${d.getUTCFullYear()}`;
+  }
+  return String(value).trim();
 }
 
 async function resolveSpreadsheetId(token: string, cachedId: string | null): Promise<string> {
@@ -156,7 +171,7 @@ async function syncFillUpsTab(
     .slice(1)
     .filter((r) => r[dateIdx])
     .map((r) => ({
-      date: String(r[dateIdx]),
+      date: normalizeDateCell(r[dateIdx]),
       odometer: Number(r[odometerIdx]),
       liters: Number(r[litersIdx]),
       totalPrice: Number(r[totalPriceIdx]),
