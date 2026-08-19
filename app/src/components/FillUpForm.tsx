@@ -13,7 +13,7 @@ interface Props {
 }
 
 // The native <input type="date"> element always uses yyyy-mm-dd for its own value, regardless
-// of how it's displayed — we convert to our stored dd/mm/yyyy format only at submit time.
+// of how it's displayed — we convert to our stored dd.mm.yyyy format only at submit time.
 function todayIso() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

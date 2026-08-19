@@ -53,14 +53,15 @@ function consumptionFormula(row: number): string {
 function pricePerLiterFormula(row: number): string {
   return `=IF(${LITERS_COL}${row}=0;"";ROUND(${TOTAL_PRICE_COL}${row}/${LITERS_COL}${row};2))`;
 }
-// Date is stored as dd/mm/yyyy: month is characters 4-5, year is the last 4 characters.
+// Date is stored as dd.mm.yyyy: month is characters 4-5, year is the last 4 characters
+// (character positions are the same regardless of "." vs "/" as the separator).
 function monthFormula(row: number): string {
   return `=MID(${DATE_COL}${row};4;2)&"."&RIGHT(${DATE_COL}${row};4)`;
 }
 
 // If a Date cell was ever typed directly into the Sheet UI (rather than written by this app),
 // Sheets recognizes it as a real date and stores it as a serial number (days since 30 Dec 1899)
-// instead of the plain dd/mm/yyyy text the app writes — UNFORMATTED_VALUE hands that number back
+// instead of the plain dd.mm.yyyy text the app writes — UNFORMATTED_VALUE hands that number back
 // as-is. Convert it back to text here so a manually-typed date still parses correctly.
 function normalizeDateCell(value: string | number | boolean): string {
   if (typeof value === 'number') {
@@ -68,7 +69,7 @@ function normalizeDateCell(value: string | number | boolean): string {
     const d = new Date(ms);
     const dd = String(d.getUTCDate()).padStart(2, '0');
     const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
-    return `${dd}/${mm}/${d.getUTCFullYear()}`;
+    return `${dd}.${mm}.${d.getUTCFullYear()}`;
   }
   return String(value).trim();
 }
