@@ -77,3 +77,10 @@ export async function appendRows(
 export function spreadsheetUrl(spreadsheetId: string): string {
   return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
 }
+
+/** Accepts either a bare spreadsheet ID or a full Google Sheets URL and returns the bare ID. */
+export function extractSpreadsheetId(input: string): string {
+  const trimmed = input.trim();
+  const match = trimmed.match(/\/d\/([a-zA-Z0-9-_]+)/);
+  return match ? match[1] : trimmed;
+}

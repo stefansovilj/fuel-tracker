@@ -100,6 +100,22 @@ export interface SyncResult {
   fillUps: FillUp[];
 }
 
+/**
+ * Pulls (and pushes anything locally new) the Vehicles tab only — used on a device that doesn't
+ * have an active vehicle selected yet, so it can discover what vehicles already exist in an
+ * existing spreadsheet before a specific vehicle's fill-ups can be synced.
+ */
+export async function pullVehicles(options: {
+  clientId: string;
+  spreadsheetId: string;
+  allVehicles: Vehicle[];
+}): Promise<Vehicle[]> {
+  const token = await ensureAccessToken(options.clientId);
+  const vehicles = await syncVehiclesTab(token, options.spreadsheetId, options.allVehicles);
+  await replaceVehicles(vehicles);
+  return vehicles;
+}
+
 export async function syncActiveVehicle(options: {
   clientId: string;
   spreadsheetId: string | null;

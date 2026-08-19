@@ -3,8 +3,8 @@ import { addFillUp, addVehicle, getFillUps, getVehicles } from './db';
 import { aggregateStats, type FillUp, type Vehicle } from './lib/fuelCalc';
 import { exportFillUpsToExcel } from './lib/excelExport';
 import { ensureAccessToken, disconnect as disconnectGoogle, isConnected as isGoogleConnected } from './lib/googleAuth';
-import { syncActiveVehicle } from './lib/sync';
-import { spreadsheetUrl } from './lib/googleSheetsSync';
+import { syncActiveVehicle, pullVehicles } from './lib/sync';
+import { extractSpreadsheetId } from './lib/googleSheetsSync';
 import { Settings } from './components/Settings';
 import { FillUpForm } from './components/FillUpForm';
 import { History } from './components/History';
@@ -101,6 +101,26 @@ export default function App() {
     setGoogleConnected(false);
   }
 
+  function handleSpreadsheetIdChange(value: string) {
+    setSyncSpreadsheetId(value.trim() ? extractSpreadsheetId(value) : null);
+  }
+
+  async function handlePullVehicles() {
+    if (!syncSpreadsheetId) throw new Error('Paste a Google Sheet ID first.');
+
+    const pulled = await pullVehicles({
+      clientId: googleClientId,
+      spreadsheetId: syncSpreadsheetId,
+      allVehicles: vehicles,
+    });
+
+    setGoogleConnected(true);
+    setVehicles(pulled);
+    if (pulled.length && !pulled.some((v) => v.id === selectedVehicleId)) {
+      setSelectedVehicleId(pulled[0].id);
+    }
+  }
+
   async function handleSync(): Promise<{ spreadsheetUrl: string }> {
     const vehicle = vehicles.find((v) => v.id === selectedVehicleId);
     if (!vehicle) throw new Error('Select a vehicle first.');
@@ -136,7 +156,9 @@ export default function App() {
           isGoogleConnected={googleConnected}
           onConnectGoogle={handleConnectGoogle}
           onDisconnectGoogle={handleDisconnectGoogle}
-          spreadsheetUrl={syncSpreadsheetId ? spreadsheetUrl(syncSpreadsheetId) : null}
+          spreadsheetId={syncSpreadsheetId ?? ''}
+          onSpreadsheetIdChange={handleSpreadsheetIdChange}
+          onPullVehicles={handlePullVehicles}
         />
       );
     }
