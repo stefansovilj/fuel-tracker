@@ -1,0 +1,78 @@
+import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
+import { computeFillUp, type FillUp, type FillUpInput, type Vehicle } from './lib/fuelCalc';
+
+interface FuelTrackerDB extends DBSchema {
+  vehicles: {
+    key: string;
+    value: Vehicle;
+  };
+  fillups: {
+    key: number;
+    value: FillUp;
+    indexes: { vehicleId: string };
+  };
+}
+
+let dbPromise: Promise<IDBPDatabase<FuelTrackerDB>> | null = null;
+
+function getDb() {
+  if (!dbPromise) {
+    dbPromise = openDB<FuelTrackerDB>('fuel-tracker', 1, {
+      upgrade(db) {
+        db.createObjectStore('vehicles', { keyPath: 'id' });
+        const fillups = db.createObjectStore('fillups', { keyPath: 'id', autoIncrement: true });
+        fillups.createIndex('vehicleId', 'vehicleId');
+      },
+    });
+  }
+  return dbPromise;
+}
+
+function slugify(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
+
+export async function getVehicles(): Promise<Vehicle[]> {
+  const db = await getDb();
+  return db.getAll('vehicles');
+}
+
+export async function addVehicle(name: string): Promise<Vehicle> {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error('Vehicle name is required.');
+
+  const db = await getDb();
+  const existing = await db.getAll('vehicles');
+  const ids = new Set(existing.map((v) => v.id));
+  const base = slugify(trimmed) || 'vehicle';
+  let id = base;
+  let suffix = 1;
+  while (ids.has(id)) {
+    id = `${base}-${++suffix}`;
+  }
+
+  const vehicle: Vehicle = { id, name: trimmed };
+  await db.put('vehicles', vehicle);
+  return vehicle;
+}
+
+export async function getFillUps(vehicleId: string): Promise<FillUp[]> {
+  const db = await getDb();
+  const rows = await db.getAllFromIndex('fillups', 'vehicleId', vehicleId);
+  return rows.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+}
+
+export async function addFillUp(input: FillUpInput): Promise<FillUp> {
+  const priorRows = await getFillUps(input.vehicleId);
+  const previous = priorRows.length ? priorRows[priorRows.length - 1] : null;
+
+  const derived = computeFillUp(input, previous);
+  const record = { ...input, ...derived } as Omit<FillUp, 'id'> as FillUp;
+
+  const db = await getDb();
+  const id = await db.add('fillups', record);
+  return { ...record, id };
+}

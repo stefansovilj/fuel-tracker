@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <?!= include('Stylesheet'); ?>
+  <script src="https://www.gstatic.com/charts/loader.js"></script>
+</head>
+<body>
+  <h1>Fuel Tracker</h1>
+  <nav>
+    <a href="?page=form">Add fill-up</a>
+    <a class="active" href="?page=dashboard">Dashboard</a>
+  </nav>
+
+  <div class="card">
+    <label for="vehicle">Vehicle</label>
+    <select id="vehicle"></select>
+  </div>
+
+  <div class="card">
+    <div class="stats-grid" id="statsGrid"></div>
+  </div>
+
+  <div class="card">
+    <div id="consumptionChart" style="width:100%;height:260px;"></div>
+  </div>
+
+  <div class="card">
+    <div id="costChart" style="width:100%;height:260px;"></div>
+  </div>
+
+  <script>
+    google.charts.load('current', { packages: ['corechart'] });
+
+    var currentVehicle = null;
+
+    function renderStats(stats) {
+      var grid = document.getElementById('statsGrid');
+      grid.innerHTML = '';
+      var items = [
+        { label: 'Total km', value: stats.totalKm ? stats.totalKm.toLocaleString() : '—' },
+        { label: 'Total liters', value: stats.totalLiters || '—' },
+        { label: 'Total spent', value: stats.totalCost ? stats.totalCost.toLocaleString() : '—' },
+        { label: 'Avg L/100km', value: stats.avgConsumption || '—' }
+      ];
+      items.forEach(function (item) {
+        var div = document.createElement('div');
+        div.className = 'stat';
+        div.innerHTML = '<div class="value">' + item.value + '</div><div class="label">' + item.label + '</div>';
+        grid.appendChild(div);
+      });
+    }
+
+    function renderCharts(stats) {
+      var consumptionData = new google.visualization.DataTable();
+      consumptionData.addColumn('string', 'Date');
+      consumptionData.addColumn('number', 'L/100km');
+      stats.series.forEach(function (s) {
+        consumptionData.addRow([s.date, s.consumption]);
+      });
+      new google.visualization.LineChart(document.getElementById('consumptionChart'))
+        .draw(consumptionData, { title: 'Consumption per fill-up (L/100km)', legend: 'none' });
+
+      var costData = new google.visualization.DataTable();
+      costData.addColumn('string', 'Month');
+      costData.addColumn('number', 'Total cost');
+      stats.monthlySeries.forEach(function (m) {
+        costData.addRow([m.month, m.cost]);
+      });
+      new google.visualization.ColumnChart(document.getElementById('costChart'))
+        .draw(costData, { title: 'Cost per month', legend: 'none' });
+    }
+
+    function loadStats(vehicleId) {
+      google.script.run.withSuccessHandler(function (stats) {
+        renderStats(stats);
+        google.charts.setOnLoadCallback(function () { renderCharts(stats); });
+      }).getStats(vehicleId);
+    }
+
+    google.script.run.withSuccessHandler(function (vehicles) {
+      var select = document.getElementById('vehicle');
+      vehicles.forEach(function (v) {
+        var opt = document.createElement('option');
+        opt.value = v.id;
+        opt.textContent = v.name;
+        select.appendChild(opt);
+      });
+      if (vehicles.length) {
+        currentVehicle = vehicles[0].id;
+        loadStats(currentVehicle);
+      }
+      select.addEventListener('change', function () {
+        currentVehicle = select.value;
+        loadStats(currentVehicle);
+      });
+    }).getVehicles();
+  </script>
+</body>
+</html>
