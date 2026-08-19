@@ -54,10 +54,11 @@ function consumptionFormula(row: number): string {
 function pricePerLiterFormula(row: number): string {
   return `=IF(${LITERS_COL}${row}=0;"";ROUND(${TOTAL_PRICE_COL}${row}/${LITERS_COL}${row};2))`;
 }
-// Date is stored as dd.mm.yyyy: month is characters 4-5, year is the last 4 characters
-// (character positions are the same regardless of "." vs "/" as the separator).
+// Date is now a real Sheets date value (not text), so MID/RIGHT operate on its implicit text
+// coercion rather than our literal dd.mm.yyyy string — empirically that's 1 character longer at
+// the end (confirmed against a real cell), so RIGHT needs 5 here to land on just the 4-digit year.
 function monthFormula(row: number): string {
-  return `=MID(${DATE_COL}${row};4;2)&"."&RIGHT(${DATE_COL}${row};4)`;
+  return `=MID(${DATE_COL}${row};4;2)&"."&RIGHT(${DATE_COL}${row};5)`;
 }
 
 // If a Date cell was ever typed directly into the Sheet UI (rather than written by this app),
