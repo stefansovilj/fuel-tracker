@@ -14,13 +14,14 @@ import {
   readTab,
   removeDefaultSheetIfEmpty,
   sanitizeTabName,
-  setColumnNumberFormat,
+  setColumnFormat,
   spreadsheetUrl,
 } from './googleSheetsSync';
 
 const TWO_DECIMAL_COLUMNS = (['Liters', 'TotalPrice', 'ConsumptionL/100km', 'PricePerLiter'] as const).map(
   (name) => EXPORT_COLUMNS.indexOf(name)
 );
+const DATE_COLUMN_INDEX = EXPORT_COLUMNS.indexOf('Date');
 
 const VEHICLES_TAB = 'Vehicles';
 const SPREADSHEET_TITLE = 'Fuel Tracker Sync';
@@ -141,12 +142,12 @@ async function syncFillUpsTab(
   const pending = localFillUps.filter((f) => f.synced === false);
 
   if (pending.length) {
-    // Only the raw columns are written as literal values — Distance/Consumption/PricePerLiter/
-    // Month are left blank here and filled in right after as formulas (see below), so the Sheet
-    // itself stays self-consistent even if a raw value gets hand-edited later.
+    // Date is intentionally left blank here — it's written afterward via USER_ENTERED (below)
+    // so Sheets stores it as a real date value rather than plain text. Distance/Consumption/
+    // PricePerLiter/Month are likewise left blank and filled in as formulas, so the Sheet itself
+    // stays self-consistent even if a raw value gets hand-edited later.
     const rawRows = pending.map((f) => {
       const row: unknown[] = new Array(EXPORT_COLUMNS.length).fill('');
-      row[EXPORT_COLUMNS.indexOf('Date')] = f.date;
       row[EXPORT_COLUMNS.indexOf('Odometer')] = f.odometer;
       row[EXPORT_COLUMNS.indexOf('Liters')] = f.liters;
       row[EXPORT_COLUMNS.indexOf('TotalPrice')] = f.totalPrice;
@@ -156,9 +157,10 @@ async function syncFillUpsTab(
 
     const startRow = await appendRows(token, spreadsheetId, tabName, rawRows);
     if (startRow) {
-      const formulaUpdates = pending.flatMap((_, i) => {
+      const formulaUpdates = pending.flatMap((f, i) => {
         const row = startRow + i;
         return [
+          { range: buildRange(tabName, `${DATE_COL}${row}`), values: [[f.date]] },
           { range: buildRange(tabName, `${DISTANCE_COL}${row}`), values: [[distanceFormula(row)]] },
           {
             range: buildRange(tabName, `${CONSUMPTION_COL}${row}:${MONTH_COL}${row}`),
@@ -169,11 +171,19 @@ async function syncFillUpsTab(
       await batchUpdateValues(token, spreadsheetId, formulaUpdates);
 
       // Display-only, never touches values — also fixes the display of any older rows in the
-      // same columns, so whole-number entries like "60" liters always show as "60.00".
+      // same columns, so whole-number entries like "60" liters always show as "60.00", and the
+      // Date column always renders as dd.mm.yyyy regardless of the sheet's default date format.
       const tabs = await getTabs(token, spreadsheetId);
       const tab = tabs.find((t) => t.title === tabName);
       if (tab) {
-        await setColumnNumberFormat(token, spreadsheetId, tab.sheetId, TWO_DECIMAL_COLUMNS, '0.00');
+        await setColumnFormat(token, spreadsheetId, tab.sheetId, TWO_DECIMAL_COLUMNS, {
+          type: 'NUMBER',
+          pattern: '0.00',
+        });
+        await setColumnFormat(token, spreadsheetId, tab.sheetId, [DATE_COLUMN_INDEX], {
+          type: 'DATE',
+          pattern: 'dd.mm.yyyy',
+        });
       }
     }
   }

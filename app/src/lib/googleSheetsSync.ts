@@ -85,15 +85,15 @@ export async function ensureTab(token: string, spreadsheetId: string, tabName: s
   });
 }
 
-/** Applies a number format (e.g. "0.00") to whole columns, so values always display with that
- * many decimal places — a display-only change, it never touches the underlying cell values, so
- * it's safe to (re-)apply to already-written rows too. */
-export async function setColumnNumberFormat(
+/** Applies a display format (e.g. NUMBER "0.00" or DATE "dd.mm.yyyy") to whole columns — a
+ * display-only change, it never touches the underlying cell values, so it's safe to (re-)apply
+ * to already-written rows too. */
+export async function setColumnFormat(
   token: string,
   spreadsheetId: string,
   sheetId: number,
   columnIndexes: number[],
-  pattern: string
+  numberFormat: { type: 'NUMBER' | 'DATE'; pattern: string }
 ): Promise<void> {
   const requests = columnIndexes.map((columnIndex) => ({
     repeatCell: {
@@ -103,7 +103,7 @@ export async function setColumnNumberFormat(
         startColumnIndex: columnIndex,
         endColumnIndex: columnIndex + 1,
       },
-      cell: { userEnteredFormat: { numberFormat: { type: 'NUMBER', pattern } } },
+      cell: { userEnteredFormat: { numberFormat } },
       fields: 'userEnteredFormat.numberFormat',
     },
   }));
@@ -164,9 +164,11 @@ export async function appendRows(
   return updatedRange ? parseStartRow(updatedRange) : null;
 }
 
-/** Writes formulas (or any values) into specific ranges, interpreted the way typing them into
- * the UI would be — used only for the derived columns, never for raw data, so a plain-text date
- * like "2026-07-09" elsewhere in the row is never at risk of being reinterpreted as a real date. */
+/** Writes formulas (or plain values) into specific ranges, interpreted the way typing them into
+ * the UI would be — e.g. a formula string becomes a live formula, and a dd.mm.yyyy date string
+ * becomes a real date value rather than plain text (deliberately, for the Date column). Other
+ * raw columns (Odometer/Liters/TotalPrice/Notes) are still written separately via appendRows'
+ * RAW input option, since only numbers/text are expected there, never something to interpret. */
 export async function batchUpdateValues(
   token: string,
   spreadsheetId: string,

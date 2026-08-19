@@ -13,12 +13,18 @@ import { Toast } from './components/Toast';
 type Page = 'form' | 'history' | 'dashboard' | 'settings';
 type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
 
+const PAGE_KEY = 'fuel-tracker:page';
 const SELECTED_VEHICLE_KEY = 'fuel-tracker:selectedVehicleId';
 const GOOGLE_CLIENT_ID_KEY = 'fuel-tracker:googleClientId';
 const SYNC_SPREADSHEET_ID_KEY = 'fuel-tracker:syncSpreadsheetId';
 
+const VALID_PAGES: Page[] = ['form', 'history', 'dashboard', 'settings'];
+
 export default function App() {
-  const [page, setPage] = useState<Page>('form');
+  const [page, setPage] = useState<Page>(() => {
+    const stored = localStorage.getItem(PAGE_KEY);
+    return VALID_PAGES.includes(stored as Page) ? (stored as Page) : 'form';
+  });
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(
     () => localStorage.getItem(SELECTED_VEHICLE_KEY)
@@ -93,6 +99,10 @@ export default function App() {
       void runAutoSync(list);
     });
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem(PAGE_KEY, page);
+  }, [page]);
 
   useEffect(() => {
     if (selectedVehicleId) {
