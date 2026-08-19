@@ -1,11 +1,13 @@
 export interface Vehicle {
   id: string;
   name: string;
+  /** false = created locally via the Add feature and not yet pushed to Sheets; true/undefined = already in sync with the sheet (undefined covers records created before this flag existed). */
+  synced?: boolean;
 }
 
 export interface FillUpInput {
   vehicleId: string;
-  date: string; // yyyy-mm-dd
+  date: string; // dd/mm/yyyy
   odometer: number;
   liters: number;
   totalPrice: number;
@@ -18,10 +20,24 @@ export interface FillUp extends FillUpInput {
   consumption: number | null;
   pricePerLiter: number;
   month: string;
+  /** false = created locally via the Add feature and not yet pushed to Sheets; true/undefined = already in sync with the sheet (undefined covers records created before this flag existed). */
+  synced?: boolean;
 }
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+/** Converts the native HTML date input's value (always yyyy-mm-dd) to our stored dd/mm/yyyy format. */
+export function isoToDisplayDate(iso: string): string {
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+/** Parses our stored dd/mm/yyyy format back into a Date object. */
+export function parseStoredDate(value: string): Date {
+  const [d, m, y] = value.split('/').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1);
 }
 
 export function formatMonth(date: Date): string {
@@ -57,7 +73,7 @@ export function computeFillUp(
   const odometer = Number(input.odometer);
   const liters = Number(input.liters);
   const totalPrice = Number(input.totalPrice);
-  const date = new Date(input.date);
+  const date = parseStoredDate(input.date);
 
   if (!odometer || odometer <= 0) throw new Error('Odometer must be a positive number.');
   if (!liters || liters <= 0) throw new Error('Liters must be a positive number.');
@@ -65,11 +81,9 @@ export function computeFillUp(
   if (Number.isNaN(date.getTime())) throw new Error('Date is invalid.');
 
   if (previous) {
-    const previousDate = new Date(previous.date);
+    const previousDate = parseStoredDate(previous.date);
     if (date < previousDate) {
-      throw new Error(
-        `Date must not be earlier than the last logged fill-up (${previousDate.toLocaleDateString()}).`
-      );
+      throw new Error(`Date must not be earlier than the last logged fill-up (${previous.date}).`);
     }
     if (odometer <= previous.odometer) {
       throw new Error(
@@ -100,7 +114,7 @@ export interface RawFillUpEntry {
  */
 export function recomputeFillUps(vehicleId: string, rawEntries: RawFillUpEntry[]): Omit<FillUp, 'id'>[] {
   const sorted = [...rawEntries].sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime() || a.odometer - b.odometer
+    (a, b) => parseStoredDate(a.date).getTime() - parseStoredDate(b.date).getTime() || a.odometer - b.odometer
   );
 
   let previousOdometer: number | null = null;
@@ -108,7 +122,7 @@ export function recomputeFillUps(vehicleId: string, rawEntries: RawFillUpEntry[]
     const odometer = Number(entry.odometer);
     const liters = Number(entry.liters);
     const totalPrice = Number(entry.totalPrice);
-    const date = new Date(entry.date);
+    const date = parseStoredDate(entry.date);
 
     const derived = deriveFields(odometer, liters, totalPrice, date, previousOdometer);
     previousOdometer = odometer;
@@ -161,7 +175,7 @@ export function aggregateStats(fillUps: FillUp[]): Stats {
     totalCost += f.totalPrice;
 
     series.push({
-      date: new Date(f.date).toLocaleDateString(),
+      date: f.date,
       consumption: f.consumption,
       pricePerLiter: f.pricePerLiter,
     });

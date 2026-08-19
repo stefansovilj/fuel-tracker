@@ -43,8 +43,9 @@ function consumptionFormula(row: number): string {
 function pricePerLiterFormula(row: number): string {
   return `=IF(${LITERS_COL}${row}=0,"",${TOTAL_PRICE_COL}${row}/${LITERS_COL}${row})`;
 }
+// Date is stored as dd/mm/yyyy: month is characters 4-5, year is the last 4 characters.
 function monthFormula(row: number): string {
-  return `=MID(${DATE_COL}${row},6,2)&"."&LEFT(${DATE_COL}${row},4)`;
+  return `=MID(${DATE_COL}${row},4,2)&"."&RIGHT(${DATE_COL}${row},4)`;
 }
 
 async function resolveSpreadsheetId(token: string, cachedId: string | null): Promise<string> {
@@ -70,22 +71,25 @@ async function syncVehiclesTab(
     rows = [['Id', 'Name']];
   }
 
-  const existingIds = new Set(rows.slice(1).map((r) => r[0]));
-  const missing = localVehicles.filter((v) => !existingIds.has(v.id));
-  if (missing.length) {
+  // Only vehicles explicitly created via "Add vehicle" and not yet pushed are eligible to be
+  // written — never inferred by comparing against what's already in the sheet. That comparison
+  // is exactly what caused spurious duplicate pushes when a manually-typed cell in the Sheet
+  // didn't match the app's expected format.
+  const pending = localVehicles.filter((v) => v.synced === false);
+  if (pending.length) {
     await appendRows(
       token,
       spreadsheetId,
       VEHICLES_TAB,
-      missing.map((v) => [v.id, v.name])
+      pending.map((v) => [v.id, v.name])
     );
   }
 
-  const finalRows = missing.length ? await readTab(token, spreadsheetId, VEHICLES_TAB) : rows;
+  const finalRows = pending.length ? await readTab(token, spreadsheetId, VEHICLES_TAB) : rows;
   return finalRows
     .slice(1)
     .filter((r) => r[0])
-    .map((r) => ({ id: String(r[0]), name: String(r[1] ?? r[0]) }));
+    .map((r) => ({ id: String(r[0]), name: String(r[1] ?? r[0]), synced: true }));
 }
 
 async function syncFillUpsTab(
@@ -102,18 +106,19 @@ async function syncFillUpsTab(
     rows = [[...EXPORT_COLUMNS]];
   }
 
-  const dateIdx = EXPORT_COLUMNS.indexOf('Date');
-  const odometerIdx = EXPORT_COLUMNS.indexOf('Odometer');
-  const existingKeys = new Set(rows.slice(1).map((r) => `${r[dateIdx]}|${r[odometerIdx]}`));
-
   const localFillUps = await getFillUps(vehicle.id);
-  const newFillUps = localFillUps.filter((f) => !existingKeys.has(`${f.date}|${f.odometer}`));
+  // Only fill-ups explicitly created via "Add fill-up" and not yet pushed are eligible to be
+  // written — never inferred by comparing against what's already in the sheet. This is what
+  // guarantees the app can never add a row to the Sheet except through that explicit action;
+  // it also removes the exact bug where a manually-typed date the Sheet auto-converted to a
+  // real date value no longer matched the app's text and got pushed again as a duplicate.
+  const pending = localFillUps.filter((f) => f.synced === false);
 
-  if (newFillUps.length) {
+  if (pending.length) {
     // Only the raw columns are written as literal values — Distance/Consumption/PricePerLiter/
     // Month are left blank here and filled in right after as formulas (see below), so the Sheet
     // itself stays self-consistent even if a raw value gets hand-edited later.
-    const rawRows = newFillUps.map((f) => {
+    const rawRows = pending.map((f) => {
       const row: unknown[] = new Array(EXPORT_COLUMNS.length).fill('');
       row[EXPORT_COLUMNS.indexOf('Date')] = f.date;
       row[EXPORT_COLUMNS.indexOf('Odometer')] = f.odometer;
@@ -125,7 +130,7 @@ async function syncFillUpsTab(
 
     const startRow = await appendRows(token, spreadsheetId, tabName, rawRows);
     if (startRow) {
-      const formulaUpdates = newFillUps.flatMap((_, i) => {
+      const formulaUpdates = pending.flatMap((_, i) => {
         const row = startRow + i;
         return [
           { range: buildRange(tabName, `${DISTANCE_COL}${row}`), values: [[distanceFormula(row)]] },
@@ -139,8 +144,10 @@ async function syncFillUpsTab(
     }
   }
 
-  const finalRows = newFillUps.length ? await readTab(token, spreadsheetId, tabName) : rows;
+  const finalRows = pending.length ? await readTab(token, spreadsheetId, tabName) : rows;
 
+  const dateIdx = EXPORT_COLUMNS.indexOf('Date');
+  const odometerIdx = EXPORT_COLUMNS.indexOf('Odometer');
   const litersIdx = EXPORT_COLUMNS.indexOf('Liters');
   const totalPriceIdx = EXPORT_COLUMNS.indexOf('TotalPrice');
   const notesIdx = EXPORT_COLUMNS.indexOf('Notes');
@@ -156,7 +163,7 @@ async function syncFillUpsTab(
       notes: r[notesIdx] !== undefined ? String(r[notesIdx]) : '',
     }));
 
-  return recomputeFillUps(vehicle.id, rawEntries);
+  return recomputeFillUps(vehicle.id, rawEntries).map((f) => ({ ...f, synced: true }));
 }
 
 export interface SyncResult {

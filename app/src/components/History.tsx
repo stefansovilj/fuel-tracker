@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { FillUp } from '../lib/fuelCalc';
+import { parseStoredDate, type FillUp } from '../lib/fuelCalc';
 
 interface Props {
   fillUps: FillUp[];
@@ -12,7 +12,9 @@ export function History({ fillUps, onSync, syncEnabled }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [syncedUrl, setSyncedUrl] = useState<string | null>(null);
 
-  const rows = [...fillUps].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const rows = [...fillUps].sort(
+    (a, b) => parseStoredDate(b.date).getTime() - parseStoredDate(a.date).getTime()
+  );
 
   async function handleSync() {
     setSyncing(true);
@@ -51,7 +53,7 @@ export function History({ fillUps, onSync, syncEnabled }: Props) {
             <tbody>
               {rows.map((f) => (
                 <tr key={f.id}>
-                  <td>{new Date(f.date).toLocaleDateString()}</td>
+                  <td>{f.date}</td>
                   <td>{f.odometer.toLocaleString()}</td>
                   <td>{f.liters}</td>
                   <td>{f.distance ?? '—'}</td>

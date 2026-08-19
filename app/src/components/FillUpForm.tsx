@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { isoToDisplayDate } from '../lib/fuelCalc';
 
 interface Props {
   vehicleId: string | null;
@@ -11,6 +12,8 @@ interface Props {
   }) => Promise<void>;
 }
 
+// The native <input type="date"> element always uses yyyy-mm-dd for its own value, regardless
+// of how it's displayed — we convert to our stored dd/mm/yyyy format only at submit time.
 function todayIso() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -33,7 +36,7 @@ export function FillUpForm({ vehicleId, onSubmit }: Props) {
     setSaving(true);
     try {
       await onSubmit({
-        date,
+        date: isoToDisplayDate(date),
         odometer: Number(odometer),
         liters: Number(liters),
         totalPrice: Number(totalPrice),

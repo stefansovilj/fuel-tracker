@@ -1,5 +1,5 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import { computeFillUp, type FillUp, type FillUpInput, type Vehicle } from './lib/fuelCalc';
+import { computeFillUp, parseStoredDate, type FillUp, type FillUpInput, type Vehicle } from './lib/fuelCalc';
 
 interface FuelTrackerDB extends DBSchema {
   vehicles: {
@@ -54,7 +54,9 @@ export async function addVehicle(name: string): Promise<Vehicle> {
     id = `${base}-${++suffix}`;
   }
 
-  const vehicle: Vehicle = { id, name: trimmed };
+  // synced: false marks this as created via the explicit "Add vehicle" action and not yet
+  // pushed — the only thing that makes a vehicle eligible to be pushed to Sheets.
+  const vehicle: Vehicle = { id, name: trimmed, synced: false };
   await db.put('vehicles', vehicle);
   return vehicle;
 }
@@ -62,7 +64,7 @@ export async function addVehicle(name: string): Promise<Vehicle> {
 export async function getFillUps(vehicleId: string): Promise<FillUp[]> {
   const db = await getDb();
   const rows = await db.getAllFromIndex('fillups', 'vehicleId', vehicleId);
-  return rows.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  return rows.sort((a, b) => parseStoredDate(a.date).getTime() - parseStoredDate(b.date).getTime());
 }
 
 export async function addFillUp(input: FillUpInput): Promise<FillUp> {
@@ -70,7 +72,11 @@ export async function addFillUp(input: FillUpInput): Promise<FillUp> {
   const previous = priorRows.length ? priorRows[priorRows.length - 1] : null;
 
   const derived = computeFillUp(input, previous);
-  const record = { ...input, ...derived } as Omit<FillUp, 'id'> as FillUp;
+  // synced: false marks this as created via the explicit "Add fill-up" action and not yet
+  // pushed — the only thing that makes a fill-up eligible to be pushed to Sheets. Sync never
+  // infers "missing" rows by comparing against sheet content; it only ever pushes rows flagged
+  // like this, so nothing gets added to the Sheet except through this form.
+  const record = { ...input, ...derived, synced: false } as Omit<FillUp, 'id'> as FillUp;
 
   const db = await getDb();
   const id = await db.add('fillups', record);
