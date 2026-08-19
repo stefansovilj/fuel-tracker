@@ -17,8 +17,17 @@ body {
 
 h1 {
   font-size: 20px;
-  margin: 0 0 16px;
+  margin: 0 0 4px;
 }
+
+.sync-status {
+  font-size: 12px;
+  margin: 0 0 12px;
+  color: #666;
+}
+.sync-status.syncing { color: #2b6cff; }
+.sync-status.synced { color: #17752f; }
+.sync-status.error { color: #a11; }
 
 h2 {
   font-size: 15px;

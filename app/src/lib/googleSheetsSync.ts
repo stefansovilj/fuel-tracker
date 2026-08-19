@@ -1,3 +1,5 @@
+import { disconnect } from './googleAuth';
+
 const API_BASE = 'https://sheets.googleapis.com/v4/spreadsheets';
 
 async function sheetsFetch(token: string, path: string, init?: RequestInit) {
@@ -10,6 +12,9 @@ async function sheetsFetch(token: string, path: string, init?: RequestInit) {
     },
   });
   if (!res.ok) {
+    // A dead/revoked token would otherwise fail the same way forever — clear it so the next
+    // sync attempt (auto or manual) correctly shows "not connected" instead of silently erroring.
+    if (res.status === 401) disconnect();
     const body = await res.text().catch(() => '');
     throw new Error(`Google Sheets API error (${res.status}): ${body || res.statusText}`);
   }

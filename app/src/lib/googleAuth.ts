@@ -17,6 +17,7 @@ declare global {
 
 const SCOPE = 'https://www.googleapis.com/auth/spreadsheets';
 const GIS_SRC = 'https://accounts.google.com/gsi/client';
+const TOKEN_STORAGE_KEY = 'fuel-tracker:googleToken';
 
 let gisLoadPromise: Promise<void> | null = null;
 
@@ -44,7 +45,31 @@ interface CachedToken {
   expiresAt: number;
 }
 
-let cachedToken: CachedToken | null = null;
+function readStoredToken(): CachedToken | null {
+  try {
+    const raw = localStorage.getItem(TOKEN_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<CachedToken>;
+    if (typeof parsed.accessToken !== 'string' || typeof parsed.expiresAt !== 'number') return null;
+    return parsed as CachedToken;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredToken(token: CachedToken | null) {
+  if (token) {
+    localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(token));
+  } else {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+  }
+}
+
+// Persisted (not just in-memory) so a page refresh — or reopening the app later, within the
+// token's ~1 hour lifetime — can keep syncing without needing a fresh sign-in popup. A popup can
+// only ever be triggered by a direct click, so once this expires, auto-sync just goes quiet until
+// the user reconnects; it can't silently refresh itself in the background.
+let cachedToken: CachedToken | null = readStoredToken();
 
 export function getCachedToken(): string | null {
   if (cachedToken && cachedToken.expiresAt > Date.now() + 30_000) {
@@ -59,6 +84,7 @@ export function isConnected(): boolean {
 
 export function disconnect() {
   cachedToken = null;
+  writeStoredToken(null);
 }
 
 export async function ensureAccessToken(clientId: string): Promise<string> {
@@ -80,11 +106,13 @@ export async function ensureAccessToken(clientId: string): Promise<string> {
           reject(new Error(response.error_description || response.error || 'Sign-in failed.'));
           return;
         }
-        cachedToken = {
+        const token: CachedToken = {
           accessToken: response.access_token,
           expiresAt: Date.now() + Number(response.expires_in ?? 3600) * 1000,
         };
-        resolve(response.access_token);
+        cachedToken = token;
+        writeStoredToken(token);
+        resolve(token.accessToken);
       },
       error_callback: (error) => {
         reject(new Error(error?.message || 'Google sign-in failed or was cancelled.'));

@@ -11,6 +11,7 @@ import { History } from './components/History';
 import { Dashboard } from './components/Dashboard';
 
 type Page = 'form' | 'history' | 'dashboard' | 'settings';
+type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
 
 const SELECTED_VEHICLE_KEY = 'fuel-tracker:selectedVehicleId';
 const GOOGLE_CLIENT_ID_KEY = 'fuel-tracker:googleClientId';
@@ -30,14 +31,53 @@ export default function App() {
     () => localStorage.getItem(SYNC_SPREADSHEET_ID_KEY)
   );
   const [googleConnected, setGoogleConnected] = useState(() => isGoogleConnected());
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
 
+  function canAutoSync(): boolean {
+    // No spreadsheetId requirement here — syncActiveVehicle creates one automatically on first
+    // use, and that doesn't need a popup, just an already-valid connection.
+    return Boolean(googleClientId.trim()) && isGoogleConnected();
+  }
+
+  async function runSync(vehicle: Vehicle, allVehicles: Vehicle[]) {
+    const result = await syncActiveVehicle({
+      clientId: googleClientId,
+      spreadsheetId: syncSpreadsheetId,
+      vehicle,
+      allVehicles,
+    });
+    setGoogleConnected(true);
+    setSyncSpreadsheetId(result.spreadsheetId);
+    setVehicles(result.vehicles);
+    setFillUps(result.fillUps);
+    return result;
+  }
+
+  async function runAutoSync(vehicle: Vehicle, allVehicles: Vehicle[]) {
+    if (!canAutoSync()) return;
+    setSyncStatus('syncing');
+    try {
+      await runSync(vehicle, allVehicles);
+      setSyncStatus('synced');
+    } catch {
+      setSyncStatus('error');
+    }
+  }
+
+  // On load: if we're still within the persisted token's lifetime, sync automatically —
+  // this can never pop up a fresh sign-in (browsers only allow that from a direct click), so
+  // it just quietly does nothing once the token's expired until the user reconnects.
   useEffect(() => {
     getVehicles().then((list) => {
       setVehicles(list);
       const stillValid = list.some((v) => v.id === selectedVehicleId);
+      const resolvedId = stillValid ? selectedVehicleId : list.length ? list[0].id : null;
       if (!stillValid) {
-        setSelectedVehicleId(list.length ? list[0].id : null);
+        setSelectedVehicleId(resolvedId);
       }
+
+      const vehicle = list.find((v) => v.id === resolvedId);
+      if (vehicle) void runAutoSync(vehicle, list);
     });
   }, []);
 
@@ -83,6 +123,9 @@ export default function App() {
     if (!selectedVehicleId) throw new Error('Select a vehicle first.');
     await addFillUp({ vehicleId: selectedVehicleId, ...data });
     setFillUps(await getFillUps(selectedVehicleId));
+
+    const vehicle = vehicles.find((v) => v.id === selectedVehicleId);
+    if (vehicle) void runAutoSync(vehicle, vehicles);
   }
 
   function handleExport() {
@@ -125,19 +168,15 @@ export default function App() {
     const vehicle = vehicles.find((v) => v.id === selectedVehicleId);
     if (!vehicle) throw new Error('Select a vehicle first.');
 
-    const result = await syncActiveVehicle({
-      clientId: googleClientId,
-      spreadsheetId: syncSpreadsheetId,
-      vehicle,
-      allVehicles: vehicles,
-    });
-
-    setGoogleConnected(true);
-    setSyncSpreadsheetId(result.spreadsheetId);
-    setVehicles(result.vehicles);
-    setFillUps(result.fillUps);
-
-    return { spreadsheetUrl: result.spreadsheetUrl };
+    setSyncStatus('syncing');
+    try {
+      const result = await runSync(vehicle, vehicles);
+      setSyncStatus('synced');
+      return { spreadsheetUrl: result.spreadsheetUrl };
+    } catch (err) {
+      setSyncStatus('error');
+      throw err;
+    }
   }
 
   const stats = aggregateStats(fillUps);
@@ -186,6 +225,14 @@ export default function App() {
   return (
     <div className="app">
       <h1>Fuel Tracker{activeVehicle ? ` — ${activeVehicle.name}` : ''}</h1>
+      {googleClientId.trim() && (
+        <p className={`sync-status ${syncStatus}`}>
+          {syncStatus === 'syncing' && 'Syncing…'}
+          {syncStatus === 'synced' && 'Synced'}
+          {syncStatus === 'error' && 'Sync failed — open History to retry'}
+          {syncStatus === 'idle' && (googleConnected ? 'Connected' : 'Not connected')}
+        </p>
+      )}
       <nav>
         <a className={page === 'form' ? 'active' : ''} onClick={() => setPage('form')}>
           Add
