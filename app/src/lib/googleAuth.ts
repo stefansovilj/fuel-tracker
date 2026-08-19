@@ -105,10 +105,29 @@ export async function ensureAccessToken(clientId: string): Promise<string> {
   await loadGis();
 
   return new Promise<string>((resolve, reject) => {
+    // Some mobile browsers (seen on Firefox for Android) can leave the sign-in popup on a
+    // blank page without ever firing GIS's callback — without this, the Connect button (and
+    // anything awaiting this promise) would then hang forever with no way to recover except
+    // reloading the app. A firm timeout means the UI always gets an answer, even if that answer
+    // is "try again" — retrying from a fresh click has, in practice, gone through cleanly.
+    let settled = false;
+    const timeoutId = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      reject(
+        new Error(
+          'Sign-in timed out. If a Google sign-in page is still open, close it and try Connect again.'
+        )
+      );
+    }, 60_000);
+
     const client = window.google!.accounts.oauth2.initTokenClient({
       client_id: clientId.trim(),
       scope: SCOPE,
       callback: (response) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
         if (response.error || !response.access_token) {
           reject(new Error(response.error_description || response.error || 'Sign-in failed.'));
           return;
@@ -123,6 +142,9 @@ export async function ensureAccessToken(clientId: string): Promise<string> {
         resolve(token.accessToken);
       },
       error_callback: (error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeoutId);
         reject(new Error(error?.message || 'Google sign-in failed or was cancelled.'));
       },
     });

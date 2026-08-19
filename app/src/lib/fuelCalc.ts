@@ -33,12 +33,6 @@ export function fixed2(value: number): string {
   return value.toFixed(2);
 }
 
-/** Converts the native HTML date input's value (always yyyy-mm-dd) to our stored dd.mm.yyyy format. */
-export function isoToDisplayDate(iso: string): string {
-  const [y, m, d] = iso.split('-');
-  return `${d}.${m}.${y}`;
-}
-
 /** Parses our stored dd.mm.yyyy format back into a Date object. */
 export function parseStoredDate(value: string): Date {
   const [d, m, y] = value.split('.').map(Number);

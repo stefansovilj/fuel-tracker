@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { isoToDisplayDate } from '../lib/fuelCalc';
+import { parseStoredDate } from '../lib/fuelCalc';
 
 interface Props {
   vehicleId: string | null;
@@ -12,15 +12,43 @@ interface Props {
   }) => Promise<void>;
 }
 
-// The native <input type="date"> element always uses yyyy-mm-dd for its own value, regardless
-// of how it's displayed — we convert to our stored dd.mm.yyyy format only at submit time.
-function todayIso() {
+// A native <input type="date"> always displays using the device's locale (mm/dd/yyyy on some
+// phones, dd/mm/yyyy or dd.mm.yyyy on others) — its .value is locale-independent, but what the
+// user actually sees isn't, which is exactly the inconsistency we want to avoid. A plain masked
+// text field guarantees the same dd.mm.yyyy display everywhere, at the cost of the native
+// calendar picker widget.
+function todayDisplayDate(): string {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  return `${dd}.${mm}.${d.getFullYear()}`;
+}
+
+function formatDateInput(raw: string): string {
+  const digits = raw.replace(/\D/g, '').slice(0, 8);
+  let result = '';
+  for (let i = 0; i < digits.length; i++) {
+    if (i === 2 || i === 4) result += '.';
+    result += digits[i];
+  }
+  return result;
+}
+
+function isValidDisplayDate(value: string): boolean {
+  const match = value.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (!match) return false;
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return false;
+  // JS's Date constructor silently normalizes overflow (e.g. 31 Feb rolls into March) instead
+  // of rejecting it — round-tripping and comparing catches that instead of just trusting it.
+  const parsed = parseStoredDate(value);
+  return parsed.getFullYear() === year && parsed.getMonth() === month - 1 && parsed.getDate() === day;
 }
 
 export function FillUpForm({ vehicleId, onSubmit }: Props) {
-  const [date, setDate] = useState(todayIso());
+  const [date, setDate] = useState(todayDisplayDate());
   const [odometer, setOdometer] = useState('');
   const [liters, setLiters] = useState('');
   const [totalPrice, setTotalPrice] = useState('');
@@ -33,10 +61,14 @@ export function FillUpForm({ vehicleId, onSubmit }: Props) {
       setMessage({ text: 'Add or select a vehicle first.', type: 'error' });
       return;
     }
+    if (!isValidDisplayDate(date)) {
+      setMessage({ text: 'Enter a valid date as dd.mm.yyyy.', type: 'error' });
+      return;
+    }
     setSaving(true);
     try {
       await onSubmit({
-        date: isoToDisplayDate(date),
+        date,
         odometer: Number(odometer),
         liters: Number(liters),
         totalPrice: Number(totalPrice),
@@ -57,7 +89,14 @@ export function FillUpForm({ vehicleId, onSubmit }: Props) {
   return (
     <div className="card">
       <label htmlFor="date">Date</label>
-      <input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+      <input
+        id="date"
+        type="text"
+        inputMode="numeric"
+        placeholder="dd.mm.yyyy"
+        value={date}
+        onChange={(e) => setDate(formatDateInput(e.target.value))}
+      />
 
       <label htmlFor="odometer">Odometer (total km)</label>
       <input
