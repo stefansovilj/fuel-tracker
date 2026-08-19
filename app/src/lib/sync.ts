@@ -10,11 +10,17 @@ import {
   buildRange,
   createSpreadsheet,
   ensureTab,
+  getTabs,
   readTab,
   removeDefaultSheetIfEmpty,
   sanitizeTabName,
+  setColumnNumberFormat,
   spreadsheetUrl,
 } from './googleSheetsSync';
+
+const TWO_DECIMAL_COLUMNS = (['Liters', 'TotalPrice', 'ConsumptionL/100km', 'PricePerLiter'] as const).map(
+  (name) => EXPORT_COLUMNS.indexOf(name)
+);
 
 const VEHICLES_TAB = 'Vehicles';
 const SPREADSHEET_TITLE = 'Fuel Tracker Sync';
@@ -34,18 +40,22 @@ const MONTH_COL = columnLetter(EXPORT_COLUMNS.indexOf('Month'));
 // Derived columns are written as live formulas referencing the raw columns, so the Sheet keeps
 // recalculating itself if a raw value is ever hand-edited — not just the app's own local view.
 // Row 2 (the very first data row in a tab) has no previous odometer, so Distance stays blank.
+//
+// Argument separator is ";" rather than "," — Google Sheets uses "," as the decimal separator
+// under comma-decimal locales (e.g. Serbian), which makes ";" the required function-argument
+// separator even for formulas written via the API. String literals like "" and "." are untouched.
 function distanceFormula(row: number): string {
-  return row <= 2 ? '' : `=ROUND(${ODOMETER_COL}${row}-${ODOMETER_COL}${row - 1},0)`;
+  return row <= 2 ? '' : `=ROUND(${ODOMETER_COL}${row}-${ODOMETER_COL}${row - 1};0)`;
 }
 function consumptionFormula(row: number): string {
-  return `=IF(OR(${DISTANCE_COL}${row}="",${DISTANCE_COL}${row}=0),"",ROUND(${LITERS_COL}${row}/${DISTANCE_COL}${row}*100,2))`;
+  return `=IF(OR(${DISTANCE_COL}${row}="";${DISTANCE_COL}${row}=0);"";ROUND(${LITERS_COL}${row}/${DISTANCE_COL}${row}*100;2))`;
 }
 function pricePerLiterFormula(row: number): string {
-  return `=IF(${LITERS_COL}${row}=0,"",ROUND(${TOTAL_PRICE_COL}${row}/${LITERS_COL}${row},2))`;
+  return `=IF(${LITERS_COL}${row}=0;"";ROUND(${TOTAL_PRICE_COL}${row}/${LITERS_COL}${row};2))`;
 }
 // Date is stored as dd/mm/yyyy: month is characters 4-5, year is the last 4 characters.
 function monthFormula(row: number): string {
-  return `=MID(${DATE_COL}${row},4,2)&"."&RIGHT(${DATE_COL}${row},4)`;
+  return `=MID(${DATE_COL}${row};4;2)&"."&RIGHT(${DATE_COL}${row};4)`;
 }
 
 // If a Date cell was ever typed directly into the Sheet UI (rather than written by this app),
@@ -156,6 +166,14 @@ async function syncFillUpsTab(
         ];
       });
       await batchUpdateValues(token, spreadsheetId, formulaUpdates);
+
+      // Display-only, never touches values — also fixes the display of any older rows in the
+      // same columns, so whole-number entries like "60" liters always show as "60.00".
+      const tabs = await getTabs(token, spreadsheetId);
+      const tab = tabs.find((t) => t.title === tabName);
+      if (tab) {
+        await setColumnNumberFormat(token, spreadsheetId, tab.sheetId, TWO_DECIMAL_COLUMNS, '0.00');
+      }
     }
   }
 

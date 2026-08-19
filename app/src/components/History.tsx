@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { FillUp } from '../lib/fuelCalc';
+import { fixed2, type FillUp } from '../lib/fuelCalc';
 
 interface Props {
   fillUps: FillUp[];
@@ -55,11 +55,11 @@ export function History({ fillUps, onSync, syncEnabled }: Props) {
                 <tr key={f.id}>
                   <td>{f.date}</td>
                   <td>{f.odometer.toLocaleString()}</td>
-                  <td>{f.liters}</td>
+                  <td>{fixed2(f.liters)}</td>
                   <td>{f.distance ?? '—'}</td>
-                  <td>{f.consumption ?? '—'}</td>
-                  <td>{f.totalPrice.toLocaleString()}</td>
-                  <td>{f.pricePerLiter}</td>
+                  <td>{f.consumption !== null ? fixed2(f.consumption) : '—'}</td>
+                  <td>{f.totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td>{fixed2(f.pricePerLiter)}</td>
                   <td>{f.notes || '—'}</td>
                 </tr>
               ))}

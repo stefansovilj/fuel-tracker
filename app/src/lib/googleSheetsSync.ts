@@ -85,6 +85,34 @@ export async function ensureTab(token: string, spreadsheetId: string, tabName: s
   });
 }
 
+/** Applies a number format (e.g. "0.00") to whole columns, so values always display with that
+ * many decimal places — a display-only change, it never touches the underlying cell values, so
+ * it's safe to (re-)apply to already-written rows too. */
+export async function setColumnNumberFormat(
+  token: string,
+  spreadsheetId: string,
+  sheetId: number,
+  columnIndexes: number[],
+  pattern: string
+): Promise<void> {
+  const requests = columnIndexes.map((columnIndex) => ({
+    repeatCell: {
+      range: {
+        sheetId,
+        startRowIndex: 1,
+        startColumnIndex: columnIndex,
+        endColumnIndex: columnIndex + 1,
+      },
+      cell: { userEnteredFormat: { numberFormat: { type: 'NUMBER', pattern } } },
+      fields: 'userEnteredFormat.numberFormat',
+    },
+  }));
+  await sheetsFetch(token, `/${spreadsheetId}:batchUpdate`, {
+    method: 'POST',
+    body: JSON.stringify({ requests }),
+  });
+}
+
 export async function deleteTab(token: string, spreadsheetId: string, sheetId: number): Promise<void> {
   await sheetsFetch(token, `/${spreadsheetId}:batchUpdate`, {
     method: 'POST',

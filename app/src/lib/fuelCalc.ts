@@ -28,6 +28,11 @@ function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
+/** Formats a decimal value for display with exactly 2 decimal places, even if they're .00. */
+export function fixed2(value: number): string {
+  return value.toFixed(2);
+}
+
 /** Converts the native HTML date input's value (always yyyy-mm-dd) to our stored dd/mm/yyyy format. */
 export function isoToDisplayDate(iso: string): string {
   const [y, m, d] = iso.split('-');
