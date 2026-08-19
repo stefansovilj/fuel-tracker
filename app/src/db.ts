@@ -76,3 +76,31 @@ export async function addFillUp(input: FillUpInput): Promise<FillUp> {
   const id = await db.add('fillups', record);
   return { ...record, id };
 }
+
+export async function replaceVehicles(vehicles: Vehicle[]): Promise<void> {
+  const db = await getDb();
+  const tx = db.transaction('vehicles', 'readwrite');
+  await tx.store.clear();
+  for (const vehicle of vehicles) {
+    await tx.store.put(vehicle);
+  }
+  await tx.done;
+}
+
+export async function replaceFillUpsForVehicle(
+  vehicleId: string,
+  fillUps: Omit<FillUp, 'id'>[]
+): Promise<void> {
+  const db = await getDb();
+  const tx = db.transaction('fillups', 'readwrite');
+  const index = tx.store.index('vehicleId');
+  let cursor = await index.openCursor(vehicleId);
+  while (cursor) {
+    await cursor.delete();
+    cursor = await cursor.continue();
+  }
+  for (const fillUp of fillUps) {
+    await tx.store.add(fillUp as FillUp);
+  }
+  await tx.done;
+}

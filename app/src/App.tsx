@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { addFillUp, addVehicle, getFillUps, getVehicles } from './db';
 import { aggregateStats, type FillUp, type Vehicle } from './lib/fuelCalc';
 import { exportFillUpsToExcel } from './lib/excelExport';
+import { ensureAccessToken, disconnect as disconnectGoogle, isConnected as isGoogleConnected } from './lib/googleAuth';
+import { syncActiveVehicle } from './lib/sync';
+import { spreadsheetUrl } from './lib/googleSheetsSync';
 import { Settings } from './components/Settings';
 import { FillUpForm } from './components/FillUpForm';
 import { History } from './components/History';
@@ -10,6 +13,8 @@ import { Dashboard } from './components/Dashboard';
 type Page = 'form' | 'history' | 'dashboard' | 'settings';
 
 const SELECTED_VEHICLE_KEY = 'fuel-tracker:selectedVehicleId';
+const GOOGLE_CLIENT_ID_KEY = 'fuel-tracker:googleClientId';
+const SYNC_SPREADSHEET_ID_KEY = 'fuel-tracker:syncSpreadsheetId';
 
 export default function App() {
   const [page, setPage] = useState<Page>('form');
@@ -18,6 +23,13 @@ export default function App() {
     () => localStorage.getItem(SELECTED_VEHICLE_KEY)
   );
   const [fillUps, setFillUps] = useState<FillUp[]>([]);
+  const [googleClientId, setGoogleClientId] = useState(
+    () => localStorage.getItem(GOOGLE_CLIENT_ID_KEY) ?? ''
+  );
+  const [syncSpreadsheetId, setSyncSpreadsheetId] = useState<string | null>(
+    () => localStorage.getItem(SYNC_SPREADSHEET_ID_KEY)
+  );
+  const [googleConnected, setGoogleConnected] = useState(() => isGoogleConnected());
 
   useEffect(() => {
     getVehicles().then((list) => {
@@ -43,6 +55,18 @@ export default function App() {
     getFillUps(selectedVehicleId).then(setFillUps);
   }, [selectedVehicleId]);
 
+  useEffect(() => {
+    localStorage.setItem(GOOGLE_CLIENT_ID_KEY, googleClientId);
+  }, [googleClientId]);
+
+  useEffect(() => {
+    if (syncSpreadsheetId) {
+      localStorage.setItem(SYNC_SPREADSHEET_ID_KEY, syncSpreadsheetId);
+    } else {
+      localStorage.removeItem(SYNC_SPREADSHEET_ID_KEY);
+    }
+  }, [syncSpreadsheetId]);
+
   async function handleAddVehicle(name: string) {
     const vehicle = await addVehicle(name);
     setVehicles(await getVehicles());
@@ -67,6 +91,35 @@ export default function App() {
     exportFillUpsToExcel(vehicle, fillUps);
   }
 
+  async function handleConnectGoogle() {
+    await ensureAccessToken(googleClientId);
+    setGoogleConnected(true);
+  }
+
+  function handleDisconnectGoogle() {
+    disconnectGoogle();
+    setGoogleConnected(false);
+  }
+
+  async function handleSync(): Promise<{ spreadsheetUrl: string }> {
+    const vehicle = vehicles.find((v) => v.id === selectedVehicleId);
+    if (!vehicle) throw new Error('Select a vehicle first.');
+
+    const result = await syncActiveVehicle({
+      clientId: googleClientId,
+      spreadsheetId: syncSpreadsheetId,
+      vehicle,
+      allVehicles: vehicles,
+    });
+
+    setGoogleConnected(true);
+    setSyncSpreadsheetId(result.spreadsheetId);
+    setVehicles(result.vehicles);
+    setFillUps(result.fillUps);
+
+    return { spreadsheetUrl: result.spreadsheetUrl };
+  }
+
   const stats = aggregateStats(fillUps);
   const activeVehicle = vehicles.find((v) => v.id === selectedVehicleId) ?? null;
 
@@ -78,6 +131,12 @@ export default function App() {
           selectedId={selectedVehicleId}
           onSelect={setSelectedVehicleId}
           onAdd={handleAddVehicle}
+          googleClientId={googleClientId}
+          onGoogleClientIdChange={setGoogleClientId}
+          isGoogleConnected={googleConnected}
+          onConnectGoogle={handleConnectGoogle}
+          onDisconnectGoogle={handleDisconnectGoogle}
+          spreadsheetUrl={syncSpreadsheetId ? spreadsheetUrl(syncSpreadsheetId) : null}
         />
       );
     }
@@ -96,7 +155,9 @@ export default function App() {
     }
 
     if (page === 'form') return <FillUpForm vehicleId={selectedVehicleId} onSubmit={handleAddFillUp} />;
-    if (page === 'history') return <History fillUps={fillUps} />;
+    if (page === 'history') {
+      return <History fillUps={fillUps} onSync={handleSync} syncEnabled={googleClientId.trim().length > 0} />;
+    }
     return <Dashboard stats={stats} onExport={handleExport} />;
   }
 

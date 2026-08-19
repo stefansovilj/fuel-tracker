@@ -29,6 +29,22 @@ export function formatMonth(date: Date): string {
   return `${mm}.${date.getFullYear()}`;
 }
 
+function deriveFields(
+  odometer: number,
+  liters: number,
+  totalPrice: number,
+  date: Date,
+  previousOdometer: number | null
+): Pick<FillUp, 'distance' | 'consumption' | 'pricePerLiter' | 'month'> {
+  const distance =
+    previousOdometer !== null && odometer > previousOdometer ? odometer - previousOdometer : null;
+  const consumption = distance ? round2((liters / distance) * 100) : null;
+  const pricePerLiter = round2(totalPrice / liters);
+  const month = formatMonth(date);
+
+  return { distance, consumption, pricePerLiter, month };
+}
+
 /**
  * Computes the derived fields for a new fill-up given the previous one for the
  * same vehicle (or null if this is the first entry). Throws if the entry would
@@ -62,12 +78,51 @@ export function computeFillUp(
     }
   }
 
-  const distance = previous ? odometer - previous.odometer : null;
-  const consumption = distance ? round2((liters / distance) * 100) : null;
-  const pricePerLiter = round2(totalPrice / liters);
-  const month = formatMonth(date);
+  return deriveFields(odometer, liters, totalPrice, date, previous ? previous.odometer : null);
+}
 
-  return { distance, consumption, pricePerLiter, month };
+export interface RawFillUpEntry {
+  date: string;
+  odometer: number;
+  liters: number;
+  totalPrice: number;
+  notes?: string;
+}
+
+/**
+ * Rebuilds full FillUp records from raw inputs only (date/odometer/liters/totalPrice/notes) —
+ * used after pulling rows back from a Google Sheet, where the raw columns are treated as the
+ * source of truth and the derived columns (distance/consumption/...) are always recomputed
+ * locally rather than trusted, so a manual edit to a raw value (e.g. fixing a Liters typo)
+ * is reflected correctly. Unlike computeFillUp, this never throws on out-of-order data —
+ * a row that doesn't fit (e.g. a lower odometer than the previous one) just gets a null
+ * distance/consumption instead of blocking the whole pull.
+ */
+export function recomputeFillUps(vehicleId: string, rawEntries: RawFillUpEntry[]): Omit<FillUp, 'id'>[] {
+  const sorted = [...rawEntries].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime() || a.odometer - b.odometer
+  );
+
+  let previousOdometer: number | null = null;
+  return sorted.map((entry) => {
+    const odometer = Number(entry.odometer);
+    const liters = Number(entry.liters);
+    const totalPrice = Number(entry.totalPrice);
+    const date = new Date(entry.date);
+
+    const derived = deriveFields(odometer, liters, totalPrice, date, previousOdometer);
+    previousOdometer = odometer;
+
+    return {
+      vehicleId,
+      date: entry.date,
+      odometer,
+      liters,
+      totalPrice,
+      notes: entry.notes ?? '',
+      ...derived,
+    };
+  });
 }
 
 export interface SeriesPoint {
