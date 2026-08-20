@@ -2,6 +2,14 @@ import { useState } from 'react';
 import type { Vehicle } from '../lib/fuelCalc';
 import { spreadsheetUrl } from '../lib/googleSheetsSync';
 
+// The Google sign-in popup needs to message back to its opener and close itself — installed/
+// standalone PWAs don't all handle that popup relationship correctly (seen getting stranded on
+// a blank accounts.google.com page on Firefox for Android), even though the exact same flow
+// works fine from a regular browser tab of the same site.
+function isStandaloneDisplay(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia?.('(display-mode: standalone)').matches;
+}
+
 interface Props {
   vehicles: Vehicle[];
   selectedId: string | null;
@@ -121,9 +129,19 @@ export function Settings({
             </button>
           </>
         ) : (
-          <button type="button" disabled={connecting || !googleClientId.trim()} onClick={handleConnect}>
-            {connecting ? 'Connecting…' : 'Connect Google Account'}
-          </button>
+          <>
+            {isStandaloneDisplay() && (
+              <p className="empty-hint">
+                You're using the installed app — on some browsers (seen on Firefox for Android),
+                Google sign-in can get stuck on a blank page here. If Connect doesn't work, open
+                this same page in a regular browser tab, connect there once, then come back —
+                the connection carries over.
+              </p>
+            )}
+            <button type="button" disabled={connecting || !googleClientId.trim()} onClick={handleConnect}>
+              {connecting ? 'Connecting…' : 'Connect Google Account'}
+            </button>
+          </>
         )}
         {connectError && <div className="message error">{connectError}</div>}
 
