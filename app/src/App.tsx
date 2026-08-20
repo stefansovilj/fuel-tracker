@@ -53,12 +53,6 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [syncStatus]);
 
-  function canAutoSync(): boolean {
-    // No spreadsheetId requirement here — sync() discovers/creates one automatically, and
-    // that doesn't need a popup, just an already-valid connection.
-    return Boolean(googleClientId.trim()) && isGoogleConnected();
-  }
-
   async function runSync(allVehicles: Vehicle[]) {
     const result = await sync({
       clientId: googleClientId,
@@ -77,7 +71,24 @@ export default function App() {
   }
 
   async function runAutoSync(allVehicles: Vehicle[]) {
-    if (!canAutoSync()) return;
+    if (!googleClientId.trim()) return;
+
+    if (!isGoogleConnected()) {
+      // The cached token's expired (or we've never connected on this device). Google's sign-in
+      // library can often renew silently — no visible popup — if this browser still has an
+      // active Google session and the scope's already been granted before. Try it quietly: a
+      // real popup can't fire without a direct click regardless, so if silent renewal isn't
+      // possible this just fails without any visible prompt. Treat that failure as "not
+      // connected yet" (stay quiet, no error toast) rather than a sync error — it's the normal,
+      // expected state after being away for a while, not something gone wrong.
+      try {
+        await ensureAccessToken(googleClientId);
+        setGoogleConnected(true);
+      } catch {
+        return;
+      }
+    }
+
     setSyncStatus('syncing');
     try {
       await runSync(allVehicles);
@@ -87,10 +98,9 @@ export default function App() {
     }
   }
 
-  // On load: if we're still within the persisted token's lifetime, sync automatically — this
-  // also discovers the spreadsheet by name and pulls a vehicle list on a brand-new device with
-  // nothing local yet. It can never pop up a fresh sign-in (browsers only allow that from a
-  // direct click), so it just quietly does nothing once the token's expired until reconnected.
+  // On load: try to reconnect (silently if possible) and sync automatically — this also
+  // discovers the spreadsheet by name and pulls a vehicle list on a brand-new device with
+  // nothing local yet.
   useEffect(() => {
     getVehicles().then((list) => {
       setVehicles(list);
