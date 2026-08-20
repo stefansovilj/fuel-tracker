@@ -1,6 +1,6 @@
 # Fuel Tracker
 
-A standalone, installable PWA for logging fuel fill-ups and tracking consumption per vehicle. Data is stored locally (IndexedDB) on each device, with optional one-way-then-back sync to a Google Sheet.
+A standalone web app for logging fuel fill-ups and tracking consumption per vehicle. Data is stored locally (IndexedDB) in the browser, with optional manual/automatic sync to a Google Sheet.
 
 Live app: https://stefansovilj.github.io/fuel-tracker/
 
@@ -15,7 +15,7 @@ npm run preview   # serve the production build locally
 
 ## Deployment
 
-Pushing to `master` (paths under `app/**`) triggers `.github/workflows/deploy.yml`, which builds and publishes `app/dist` to GitHub Pages automatically. No manual deploy step.
+Pushing to `master` triggers `.github/workflows/deploy.yml`, which builds and publishes `dist/` to GitHub Pages automatically. No manual deploy step.
 
 ## Google Sheets sync setup
 
@@ -43,7 +43,7 @@ This is a one-time setup per Google account, done in [Google Cloud Console](http
    - `.../auth/drive.metadata.readonly` ("See information about your Google Drive files")
    → Update → Save and Continue
 5. **Test users**: **Add Users** → add the Gmail account you'll actually use the app with → Save and Continue
-6. Leave publishing status as **Testing**
+6. Leave publishing status as **Testing** (Google caps refresh-token/session lifetime for unverified apps regardless of architecture — see "Google session lifetime" below)
 
 ### 4. Create the OAuth Client ID
 
@@ -67,16 +67,20 @@ That's it — the first sync creates a spreadsheet named "Fuel Tracker Sync" in 
 
 ## How sync works
 
-- **Push is append-only.** The app never rewrites or deletes an existing row in the Sheet — it only adds rows the Sheet doesn't already have yet (matched by vehicle ID, and by Date+Odometer for fill-ups).
-- **Pull recomputes, never trusts, derived columns.** After appending, the app reads back the raw Date/Odometer/Liters/TotalPrice/Notes and recalculates Distance/Consumption/PricePerLiter/Month locally — so hand-editing a raw value directly in Sheets (e.g. fixing a typo'd Liters) is picked up correctly on the next sync.
-- **Sync runs automatically**: after adding a fill-up, on connecting, and once when the app loads (reusing the persisted token while it's still valid, generally up to ~1 hour). The manual "Sync now" / "Sync to Google Sheets" buttons (Settings / History) force it on demand — useful right after editing the Sheet by hand.
+- **Push only ever sends fill-ups/vehicles created through the app's own Add actions**, never inferred by diffing against what's already in the Sheet. Each record carries a `synced` flag, set on creation and flipped once it's confirmed written — so the app can't accidentally duplicate or invent a row in the Sheet.
+- **Pull recomputes, never trusts, derived columns.** After pushing, the app reads back the raw Date/Odometer/Liters/TotalPrice/Notes and recalculates Distance/Consumption/PricePerLiter/Month locally — so hand-editing a raw value directly in Sheets (e.g. fixing a typo'd Liters) is picked up correctly on the next sync. New fill-ups' Distance/Consumption/PricePerLiter/Month are also written as live Sheet formulas (in `;`-separated syntax, for comma-decimal locales), so the Sheet keeps recalculating itself too.
+- **Sync runs automatically**: after adding a fill-up, on connecting, and on every page load — including an attempt to silently renew an expired token (no visible popup) before falling back to requiring a manual Connect click.
+- **Dates are stored as `dd.mm.yyyy`** everywhere (locally, in the Sheet, in Excel exports) — the Add form's date field is a plain masked text input rather than the browser's native date picker, specifically so it can't drift into `mm/dd/yyyy` on a device with a different locale.
 - **No in-app editing yet.** Corrections happen directly in the Sheet; an edit button in the app is a possible future addition.
-- The old `google-sheets-script/` Apps Script project (a separate, earlier approach) is unrelated to this sync and kept only for reference.
+
+### Google session lifetime
+
+This app has no server, so the browser holds a Google access token directly (~1 hour, refreshed silently when possible). This app's OAuth consent screen is in **Testing** status, and Google caps session/refresh lifetime for unverified apps regardless of whether a backend is added — lifting that cap requires Google's app verification process, which is disproportionate for a personal tool. In practice: leave the app for a while and you may need to hit **Connect** again next time; this is expected, not a bug.
 
 ## Troubleshooting
 
 - **`invalid_client` / "OAuth client was not found"**: almost always the Client ID string itself — re-copy it directly from Credentials (don't hand-select from a downloaded JSON, which can grab quotes/commas along with it), and confirm the OAuth client's type is "Web application" and its Authorized JavaScript origins include the exact origin you're using.
 - **Signs into the wrong Google account**: make sure the account you want is actually signed into the browser you're using, and that it's listed under **Test users** in the OAuth consent screen.
-- **Works on desktop but not on some mobile browsers (e.g. Firefox for Android)**: browsers with aggressive tracking protection (Enhanced Tracking Protection / Total Cookie Protection) can block Google's sign-in popup. Turn off tracking protection for this site specifically, or use Chrome.
+- **Google sign-in popup does nothing / gets stuck**: browsers with aggressive tracking protection (Firefox's Enhanced Tracking Protection / Total Cookie Protection) can block the sign-in popup — turn off tracking protection for this site specifically, or use Chrome.
 - **"Access blocked: this app hasn't been verified"**: expected in Testing mode — click **Advanced → Go to Fuel Tracker (unsafe)** to continue. Safe since it's your own Cloud project.
 - **Reconnecting after a scope change**: if this app's required scopes ever change (e.g. Drive access was added after Sheets-only), an old connection stops working automatically — just hit Connect again to re-consent.

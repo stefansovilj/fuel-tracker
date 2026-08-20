@@ -72,7 +72,7 @@ export async function getTabs(token: string, spreadsheetId: string): Promise<Tab
   }));
 }
 
-export async function getTabNames(token: string, spreadsheetId: string): Promise<string[]> {
+async function getTabNames(token: string, spreadsheetId: string): Promise<string[]> {
   return (await getTabs(token, spreadsheetId)).map((t) => t.title);
 }
 
@@ -183,11 +183,4 @@ export async function batchUpdateValues(
 
 export function spreadsheetUrl(spreadsheetId: string): string {
   return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
-}
-
-/** Accepts either a bare spreadsheet ID or a full Google Sheets URL and returns the bare ID. */
-export function extractSpreadsheetId(input: string): string {
-  const trimmed = input.trim();
-  const match = trimmed.match(/\/d\/([a-zA-Z0-9-_]+)/);
-  return match ? match[1] : trimmed;
 }

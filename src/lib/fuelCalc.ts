@@ -39,7 +39,7 @@ export function parseStoredDate(value: string): Date {
   return new Date(y, (m || 1) - 1, d || 1);
 }
 
-export function formatMonth(date: Date): string {
+function formatMonth(date: Date): string {
   const mm = String(date.getMonth() + 1).padStart(2, '0');
   return `${mm}.${date.getFullYear()}`;
 }
@@ -65,7 +65,7 @@ function deriveFields(
 /**
  * Computes the derived fields for a new fill-up given the previous one for the
  * same vehicle (or null if this is the first entry). Throws if the entry would
- * be out of order — mirrors the validation in the original Apps Script backend.
+ * be out of order (an earlier date, or a non-increasing odometer reading).
  */
 export function computeFillUp(
   input: FillUpInput,
