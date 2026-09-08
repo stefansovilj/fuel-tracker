@@ -1,0 +1,45 @@
+name: Refresh fuel price snapshot
+
+# The app is a static Pages build with no backend, and the price API allowlists only its own
+# origin for CORS — so the price is fetched here, committed as public/fuel-prices.json, and
+# published by the existing deploy workflow (which this commit retriggers).
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fuel-prices
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Fetch prices
+        run: node scripts/fetch-fuel-prices.mjs
+      - name: Commit if changed
+        run: |
+          # fetchedAt changes on every run, so compare only the price data — a daily commit that
+          # updates nothing but a timestamp would retrigger a deploy for no reason.
+          if git diff --quiet -- public/fuel-prices.json; then
+            echo 'No change.'
+            exit 0
+          fi
+          if [ -z "$(git diff -- public/fuel-prices.json | grep -E '^[+-]' | grep -vE '^(\+\+\+|---|[+-] *"fetchedAt")')" ]; then
+            echo 'Only fetchedAt changed — discarding.'
+            git checkout -- public/fuel-prices.json
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add public/fuel-prices.json
+          git commit -m 'Refresh fuel price snapshot'
+          git push

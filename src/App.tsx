@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
 import { addFillUp, addVehicle, getFillUps, getVehicles } from './db';
-import { aggregateStats, type FillUp, type Vehicle } from './lib/fuelCalc';
+import { aggregateStats, fixed2, type FillUp, type Vehicle } from './lib/fuelCalc';
+import {
+  DEFAULT_FUEL_ID,
+  DEFAULT_STATION_ID,
+  formatPricedAt,
+  loadFuelPrices,
+  resolveFuel,
+  type FuelPriceSnapshot,
+} from './lib/fuelPrices';
 import { exportFillUpsToExcel } from './lib/excelExport';
 import { ensureAccessToken, disconnect as disconnectGoogle, isConnected as isGoogleConnected } from './lib/googleAuth';
 import { sync } from './lib/sync';
@@ -18,8 +26,15 @@ const SELECTED_VEHICLE_KEY = 'fuel-tracker:selectedVehicleId';
 const GOOGLE_CLIENT_ID_KEY = 'fuel-tracker:googleClientId';
 const SYNC_SPREADSHEET_ID_KEY = 'fuel-tracker:syncSpreadsheetId';
 const EUR_RATE_KEY = 'fuel-tracker:eurRate';
+const PRICE_STATION_KEY = 'fuel-tracker:priceStationId';
+const PRICE_FUEL_KEY = 'fuel-tracker:priceFuelId';
 
 const VALID_PAGES: Page[] = ['form', 'history', 'dashboard', 'settings'];
+
+function storedId(key: string, fallback: number): number {
+  const stored = Number(localStorage.getItem(key));
+  return Number.isFinite(stored) && stored > 0 ? stored : fallback;
+}
 
 export default function App() {
   const [page, setPage] = useState<Page>(() => {
@@ -41,6 +56,12 @@ export default function App() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const [toastVisible, setToastVisible] = useState(false);
   const [eurRate, setEurRate] = useState(() => localStorage.getItem(EUR_RATE_KEY) ?? '');
+  const [fuelPrices, setFuelPrices] = useState<FuelPriceSnapshot | null>(null);
+  const [fuelPricesFromCache, setFuelPricesFromCache] = useState(false);
+  const [priceStationId, setPriceStationId] = useState(() =>
+    storedId(PRICE_STATION_KEY, DEFAULT_STATION_ID)
+  );
+  const [priceFuelId, setPriceFuelId] = useState(() => storedId(PRICE_FUEL_KEY, DEFAULT_FUEL_ID));
 
   // "syncing" pops up immediately and stays until superseded; "synced"/"error" then auto-dismiss
   // (error stays up longer, since a failure matters more than a routine success).
@@ -112,6 +133,19 @@ export default function App() {
     });
   }, []);
 
+  async function refreshFuelPrices() {
+    const loaded = await loadFuelPrices();
+    if (!loaded) return;
+    setFuelPrices(loaded.snapshot);
+    setFuelPricesFromCache(loaded.fromCache);
+  }
+
+  // Prices are a prefill convenience, so this is deliberately fire-and-forget: loadFuelPrices
+  // never rejects, and a missing snapshot just leaves the price field blank for manual entry.
+  useEffect(() => {
+    void refreshFuelPrices();
+  }, []);
+
   useEffect(() => {
     localStorage.setItem(PAGE_KEY, page);
   }, [page]);
@@ -137,6 +171,11 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(EUR_RATE_KEY, eurRate);
   }, [eurRate]);
+
+  useEffect(() => {
+    localStorage.setItem(PRICE_STATION_KEY, String(priceStationId));
+    localStorage.setItem(PRICE_FUEL_KEY, String(priceFuelId));
+  }, [priceStationId, priceFuelId]);
 
   useEffect(() => {
     if (syncSpreadsheetId) {
@@ -194,8 +233,25 @@ export default function App() {
     }
   }
 
+  function handlePriceSourceChange(stationId: number, fuelId: number) {
+    setPriceStationId(stationId);
+    setPriceFuelId(fuelId);
+  }
+
   const stats = aggregateStats(fillUps);
   const activeVehicle = vehicles.find((v) => v.id === selectedVehicleId) ?? null;
+
+  const selectedPrice = resolveFuel(fuelPrices, priceStationId, priceFuelId);
+  const pricedAt = selectedPrice ? formatPricedAt(selectedPrice.fuel.pricedAt) : null;
+  const defaultPrice = selectedPrice
+    ? {
+        value: selectedPrice.fuel.price,
+        label:
+          `${selectedPrice.station.name} · ${selectedPrice.fuel.displayName} · ` +
+          `${fixed2(selectedPrice.fuel.price)} ${fuelPrices?.currency ?? ''}/L` +
+          `${pricedAt ? ` since ${pricedAt}` : ''}${fuelPricesFromCache ? ' · offline copy' : ''}`,
+      }
+    : null;
 
   function renderPage() {
     if (page === 'settings') {
@@ -214,6 +270,12 @@ export default function App() {
           onSync={handleSync}
           eurRate={eurRate}
           onEurRateChange={setEurRate}
+          fuelPrices={fuelPrices}
+          fuelPricesFromCache={fuelPricesFromCache}
+          priceStationId={priceStationId}
+          priceFuelId={priceFuelId}
+          onPriceSourceChange={handlePriceSourceChange}
+          onRefreshPrices={refreshFuelPrices}
         />
       );
     }
@@ -231,7 +293,15 @@ export default function App() {
       );
     }
 
-    if (page === 'form') return <FillUpForm vehicleId={selectedVehicleId} onSubmit={handleAddFillUp} />;
+    if (page === 'form') {
+      return (
+        <FillUpForm
+          vehicleId={selectedVehicleId}
+          defaultPrice={defaultPrice}
+          onSubmit={handleAddFillUp}
+        />
+      );
+    }
     if (page === 'history') {
       return <History fillUps={fillUps} onSync={handleSync} syncEnabled={googleClientId.trim().length > 0} />;
     }

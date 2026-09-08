@@ -17,6 +17,18 @@ npm run preview   # serve the production build locally
 
 Pushing to `master` triggers `.github/workflows/deploy.yml`, which builds and publishes `dist/` to GitHub Pages automatically. No manual deploy step.
 
+## Pump prices
+
+The Add form prefills **Price per liter** from the current pump price and calculates the total as `liters × price per liter`. Both fields stay editable — typing in the total overrides the calculation (a "Recalculate" link, or clearing the field, hands it back), and the price per liter itself is never stored: `TotalPrice` remains the value written to IndexedDB and the Sheet, with every derived column recomputed from it as before.
+
+Prices come from benzinko.com, which allowlists only its own origin for CORS — a browser request from the Pages origin is refused with a 403. So they're fetched server-side instead:
+
+- `.github/workflows/fuel-prices.yml` runs `scripts/fetch-fuel-prices.mjs` daily at 04:00 UTC (and on demand via *Run workflow*).
+- The script writes `public/fuel-prices.json` and commits it only when a price actually changed, which in turn retriggers the deploy.
+- The app loads that file from its own origin and caches it in `localStorage`, so the prefill also works offline. If neither is available the field is simply blank and entry is fully manual.
+
+Pick the station and grade under **Settings → Default fuel price** (default: Nis Petrol / Evro Dizel, Serbia's capped basic diesel). Since the snapshot is at most a day old and the price is capped, it's a starting value — check the pump receipt when it matters.
+
 ## Google Sheets sync setup
 
 This is a one-time setup per Google account, done in [Google Cloud Console](https://console.cloud.google.com). Once done, every device just needs the Client ID pasted into Settings and a click on "Connect" — no spreadsheet ID to find or copy between devices, since the app locates the sync spreadsheet by name ("Fuel Tracker Sync") automatically via a Drive search.

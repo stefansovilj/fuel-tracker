@@ -230,3 +230,22 @@ th {
     grid-template-columns: repeat(4, 1fr);
   }
 }
+
+.field-hint {
+  font-size: 12px;
+  color: #666;
+  margin: 6px 0 0;
+}
+
+.link-button {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #2b6cff;
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+}
