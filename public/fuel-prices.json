@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-09-08T12:52:33.600Z",
+  "fetchedAt": "2026-09-12T08:19:23.908Z",
   "source": "https://benzinko.com/server/api/stations/featured",
   "currency": "RSD",
   "stations": [
@@ -12,35 +12,35 @@
           "displayName": "TNG",
           "category": "TNG",
           "price": 105.9,
-          "pricedAt": "2026-09-04T10:24:20"
+          "pricedAt": "2026-09-11T11:49:43"
         },
         {
           "id": 6,
           "displayName": "BMB 95",
           "category": "BENZIN",
           "price": 205,
-          "pricedAt": "2026-09-04T10:24:15"
+          "pricedAt": "2026-09-11T11:49:38"
         },
         {
           "id": 7,
           "displayName": "Evro Dizel",
           "category": "DIZEL",
           "price": 234,
-          "pricedAt": "2026-09-04T10:24:16"
+          "pricedAt": "2026-09-11T11:49:39"
         },
         {
           "id": 8,
           "displayName": "Dizel Plus",
           "category": "DIZEL",
           "price": 250.9,
-          "pricedAt": "2026-09-04T10:24:19"
+          "pricedAt": "2026-09-11T11:49:42"
         },
         {
           "id": 9,
           "displayName": "BMB 95+",
           "category": "BENZIN",
           "price": 236.9,
-          "pricedAt": "2026-09-04T10:24:17"
+          "pricedAt": "2026-09-11T11:49:41"
         }
       ]
     },
@@ -53,42 +53,42 @@
           "displayName": "BMB 95",
           "category": "BENZIN",
           "price": 205,
-          "pricedAt": "2026-09-04T10:24:31"
+          "pricedAt": "2026-09-11T11:49:52"
         },
         {
           "id": 4,
           "displayName": "Evro Dizel",
           "category": "DIZEL",
           "price": 234,
-          "pricedAt": "2026-09-04T10:24:29"
+          "pricedAt": "2026-09-11T11:49:50"
         },
         {
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
           "price": 105,
-          "pricedAt": "2026-09-04T10:24:27"
+          "pricedAt": "2026-09-11T11:49:49"
         },
         {
           "id": 10,
           "displayName": "Maxx Dizel",
           "category": "DIZEL",
           "price": 250.4,
-          "pricedAt": "2026-09-04T10:24:32"
+          "pricedAt": "2026-09-11T11:49:53"
         },
         {
           "id": 11,
           "displayName": "Maxx BMB 95",
           "category": "BENZIN",
           "price": 225.9,
-          "pricedAt": "2026-09-04T10:24:34"
+          "pricedAt": "2026-09-11T11:49:54"
         },
         {
           "id": 12,
           "displayName": "Maxx BMB S100",
           "category": "BENZIN",
           "price": 236.9,
-          "pricedAt": "2026-09-04T10:24:37"
+          "pricedAt": "2026-09-11T11:49:57"
         }
       ]
     },
@@ -101,35 +101,35 @@
           "displayName": "BMB 95",
           "category": "BENZIN",
           "price": 205,
-          "pricedAt": "2026-09-04T10:25:17"
+          "pricedAt": "2026-09-11T11:50:04"
         },
         {
           "id": 4,
           "displayName": "Evro Dizel",
           "category": "DIZEL",
           "price": 234,
-          "pricedAt": "2026-09-04T10:25:19"
+          "pricedAt": "2026-09-11T11:50:01"
         },
         {
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
           "price": 105.9,
-          "pricedAt": "2026-09-04T10:25:11"
+          "pricedAt": "2026-09-11T11:50:07"
         },
         {
           "id": 13,
           "displayName": "Dizel Gold",
           "category": "DIZEL",
           "price": 246.9,
-          "pricedAt": "2026-09-04T10:25:16"
+          "pricedAt": "2026-09-11T11:50:03"
         },
         {
           "id": 14,
           "displayName": "BMB 100",
           "category": "BENZIN",
           "price": 224.9,
-          "pricedAt": "2026-09-04T10:25:12"
+          "pricedAt": "2026-09-11T11:50:06"
         }
       ]
     },
@@ -142,35 +142,35 @@
           "displayName": "GDrive 100",
           "category": "BENZIN",
           "price": 225,
-          "pricedAt": "2026-09-04T10:26:02"
+          "pricedAt": "2026-09-11T11:50:13"
         },
         {
           "id": 2,
           "displayName": "GDrive D",
           "category": "DIZEL",
           "price": 246,
-          "pricedAt": "2026-09-04T10:26:00"
+          "pricedAt": "2026-09-11T11:50:14"
         },
         {
           "id": 3,
           "displayName": "BMB 95",
           "category": "BENZIN",
           "price": 205,
-          "pricedAt": "2026-09-04T10:25:58"
+          "pricedAt": "2026-09-11T11:50:16"
         },
         {
           "id": 4,
           "displayName": "Evro Dizel",
           "category": "DIZEL",
           "price": 234,
-          "pricedAt": "2026-09-04T10:25:56"
+          "pricedAt": "2026-09-11T11:50:17"
         },
         {
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
           "price": 105.9,
-          "pricedAt": "2026-09-04T10:25:55"
+          "pricedAt": "2026-09-11T11:50:19"
         }
       ]
     },
@@ -183,35 +183,35 @@
           "displayName": "BMB 95",
           "category": "BENZIN",
           "price": 205,
-          "pricedAt": "2026-09-04T10:26:35"
+          "pricedAt": "2026-09-11T11:50:23"
         },
         {
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
           "price": 106.9,
-          "pricedAt": "2026-09-04T10:26:29"
+          "pricedAt": "2026-09-11T11:50:28"
         },
         {
           "id": 14,
           "displayName": "BMB 100",
           "category": "BENZIN",
           "price": 233.9,
-          "pricedAt": "2026-09-04T10:26:33"
+          "pricedAt": "2026-09-11T11:50:24"
         },
         {
           "id": 15,
           "displayName": "Evro Dizel",
           "category": "DIZEL",
           "price": 234,
-          "pricedAt": "2026-09-04T10:26:30"
+          "pricedAt": "2026-09-11T11:50:25"
         },
         {
           "id": 16,
           "displayName": "Gold Evro Dizel",
           "category": "DIZEL",
           "price": 249.9,
-          "pricedAt": "2026-09-04T10:26:30"
+          "pricedAt": "2026-09-11T11:50:26"
         }
       ]
     },
@@ -224,35 +224,35 @@
           "displayName": "BMB 95",
           "category": "BENZIN",
           "price": 205,
-          "pricedAt": "2026-09-04T10:27:10"
+          "pricedAt": "2026-09-11T11:51:14"
         },
         {
           "id": 4,
           "displayName": "Evro Dizel",
           "category": "DIZEL",
           "price": 234,
-          "pricedAt": "2026-09-04T10:27:12"
+          "pricedAt": "2026-09-11T11:51:17"
         },
         {
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
           "price": 105.9,
-          "pricedAt": "2026-09-04T22:15:38.904914865"
+          "pricedAt": "2026-09-11T11:51:18"
         },
         {
           "id": 17,
           "displayName": "Expert Dizel",
           "category": "DIZEL",
-          "price": 245.9,
-          "pricedAt": "2026-09-04T10:27:08"
+          "price": 246.9,
+          "pricedAt": "2026-09-11T11:51:12"
         },
         {
           "id": 18,
           "displayName": "Expert BMB",
           "category": "BENZIN",
-          "price": 224.9,
-          "pricedAt": "2026-09-04T10:27:09"
+          "price": 225.9,
+          "pricedAt": "2026-09-11T11:51:13"
         }
       ]
     }
