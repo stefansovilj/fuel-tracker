@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-09-12T08:19:23.908Z",
+  "fetchedAt": "2026-09-14T08:05:12.994Z",
   "source": "https://benzinko.com/server/api/stations/featured",
   "currency": "RSD",
   "stations": [
@@ -11,8 +11,8 @@
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
-          "price": 105.9,
-          "pricedAt": "2026-09-11T11:49:43"
+          "price": 106.9,
+          "pricedAt": "2026-09-12T20:01:57"
         },
         {
           "id": 6,
@@ -73,8 +73,8 @@
           "id": 10,
           "displayName": "Maxx Dizel",
           "category": "DIZEL",
-          "price": 250.4,
-          "pricedAt": "2026-09-11T11:49:53"
+          "price": 251.4,
+          "pricedAt": "2026-09-12T20:04:47"
         },
         {
           "id": 11,
@@ -128,8 +128,8 @@
           "id": 14,
           "displayName": "BMB 100",
           "category": "BENZIN",
-          "price": 224.9,
-          "pricedAt": "2026-09-11T11:50:06"
+          "price": 225.9,
+          "pricedAt": "2026-09-12T20:06:53.264011852"
         }
       ]
     },
@@ -141,15 +141,15 @@
           "id": 1,
           "displayName": "GDrive 100",
           "category": "BENZIN",
-          "price": 225,
-          "pricedAt": "2026-09-11T11:50:13"
+          "price": 226,
+          "pricedAt": "2026-09-12T20:02:34"
         },
         {
           "id": 2,
           "displayName": "GDrive D",
           "category": "DIZEL",
-          "price": 246,
-          "pricedAt": "2026-09-11T11:50:14"
+          "price": 247,
+          "pricedAt": "2026-09-12T20:02:33"
         },
         {
           "id": 3,
@@ -169,8 +169,8 @@
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
-          "price": 105.9,
-          "pricedAt": "2026-09-11T11:50:19"
+          "price": 106.9,
+          "pricedAt": "2026-09-12T20:02:32"
         }
       ]
     },
