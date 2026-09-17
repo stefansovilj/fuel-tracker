@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-09-14T08:05:12.994Z",
+  "fetchedAt": "2026-09-17T09:07:50.395Z",
   "source": "https://benzinko.com/server/api/stations/featured",
   "currency": "RSD",
   "stations": [
@@ -129,7 +129,7 @@
           "displayName": "BMB 100",
           "category": "BENZIN",
           "price": 225.9,
-          "pricedAt": "2026-09-12T20:06:53.264011852"
+          "pricedAt": "2026-09-12T20:06:53"
         }
       ]
     },
