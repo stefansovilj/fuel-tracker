@@ -72,11 +72,29 @@ no fixing the four known lint warnings.
 
 ## Stage 5 — Test
 
-Delegate to **`test-author`** for anything the analyst marked *unit-testable*.
+Two agents, chosen by what the change actually touches. Run both when it
+touches both. Never skip the stage entirely without naming which one you
+considered and why it did not apply.
 
-If the analyst marked everything *visual/manual only*, **skip this stage and
-say why.** Do not manufacture a test to make the pipeline look complete — a
-test asserting that a hex string equals itself is worse than no test.
+**`test-author`** — for anything the analyst marked *unit-testable*: the pure
+logic in `src/lib/`.
+
+Do not manufacture a unit test to make the pipeline look complete. A test
+asserting that a hex string equals itself is worse than no test.
+
+**`visual-verifier`** — for anything that renders: `src/index.css`, the inline
+Recharts props in `Dashboard.tsx`, component markup, layout. It drives the app
+in a real browser, reads computed colors and contrast off the live DOM, and
+screenshots every view with data seeded.
+
+"Visual/manual only" is **not** a reason to skip this stage — it is the reason
+this agent exists. Most of what looks unverifiable in a UI change is in fact
+machine-checkable once something renders it: computed colors, contrast ratios,
+whether two CSS rules resolve to the same value. Delegate that, and hand the
+human only the genuine judgment calls.
+
+What it cannot do is tell you whether a color is the *right* color. Keep those
+two things clearly separated in the review packet.
 
 ## Stage 6 — Verify
 
@@ -91,10 +109,15 @@ loop indefinitely.
 Present to the user, in this order:
 
 1. **What changed** — one paragraph, plain language.
-2. **Gates** — build / test / lint, with real numbers.
+2. **Gates** — build / test / lint, with real numbers. For a UI change, add
+   `visual-verifier`'s computed-style table and its verdict; those are gates
+   too, and they are the only ones that can fail for a color reason.
 3. **Diff summary** — `git diff --stat`, then walk the substantive hunks.
-4. **Needs your eyes** — from the verifier. For any UI change, always offer to
-   start `npm run dev` so they can look at it.
+4. **Needs your eyes** — from the verifier, narrowed by what `visual-verifier`
+   already settled. Do not hand over a check a machine has done: if the
+   contrast is measured and the screenshots are attached, what remains is
+   taste and coverage gaps. Say which is which, and offer to start
+   `npm run dev` for anything still open.
 5. **Proposed commit message.**
 
 Then **stop and wait.**
