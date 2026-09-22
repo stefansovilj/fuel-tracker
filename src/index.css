@@ -5,7 +5,7 @@
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #f5f6f8;
+  background: #f7f6f3;
   color: #1f2430;
 }
 
@@ -45,9 +45,9 @@ h1 {
   max-width: calc(100% - 32px);
   animation: toast-in 0.2s ease-out;
 }
-.toast.info { background: #2b6cff; }
+.toast.info { background: #dd1d21; }
 .toast.success { background: #17752f; }
-.toast.error { background: #a11; }
+.toast.error { background: #7a0f12; }
 
 .toast-close {
   margin: 0;
@@ -93,9 +93,9 @@ nav a {
 }
 
 nav a.active {
-  background: #2b6cff;
+  background: #dd1d21;
   color: #fff;
-  border-color: #2b6cff;
+  border-color: #dd1d21;
 }
 
 .card {
@@ -133,18 +133,21 @@ button {
   font-size: 16px;
   font-weight: 600;
   color: #fff;
-  background: #2b6cff;
+  background: #dd1d21;
   border: none;
   border-radius: 8px;
   cursor: pointer;
 }
 
+/* Yellow needs dark text — white on #fbce07 is ~1.5:1 and unreadable. The
+   inherited `color: #fff` from the base button rule above must be overridden. */
 button.secondary {
-  background: #555;
+  background: #fbce07;
+  color: #1f2430;
 }
 
 button:disabled {
-  background: #9db6f5;
+  background: #ef9394;
   cursor: default;
 }
 
@@ -157,7 +160,7 @@ button:disabled {
 
 .message.error {
   background: #fde2e2;
-  color: #a11;
+  color: #7a0f12;
 }
 
 .message.success {
@@ -173,7 +176,7 @@ button:disabled {
 }
 
 .stat {
-  background: #f5f6f8;
+  background: #f7f6f3;
   border-radius: 8px;
   padding: 12px;
   text-align: center;
@@ -243,7 +246,7 @@ th {
   padding: 0;
   font-size: 12px;
   font-weight: 600;
-  color: #2b6cff;
+  color: #dd1d21;
   background: none;
   border: none;
   text-decoration: underline;
