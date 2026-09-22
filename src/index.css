@@ -139,11 +139,11 @@ button {
   cursor: pointer;
 }
 
-/* Yellow needs dark text — white on #fbce07 is ~1.5:1 and unreadable. The
-   inherited `color: #fff` from the base button rule above must be overridden. */
+/* The accent blue carries white text — 6.3:1 on #0f62a8, where dark #1f2430
+   would be 2.5:1 and fail. So this rule sets no `color` at all and keeps the
+   inherited `color: #fff` from the base button rule above. Do not add one. */
 button.secondary {
-  background: #fbce07;
-  color: #1f2430;
+  background: #0f62a8;
 }
 
 button:disabled {

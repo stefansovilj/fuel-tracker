@@ -74,22 +74,42 @@ half-restyled app:
 - `src/components/Dashboard.tsx` — **inline hex passed to Recharts** (around
   lines 80, 93, 106, 119). These are invisible to a CSS-only search.
 
-Current palette (green and yellow): `#008542` primary green, `#fbce07` accent
-yellow, `#e8a100` chart yellow, `#17752f` success green, `#7a0f12` error maroon,
-`#f7f6f3` page background, `#1f2430` body text.
+Current palette (green and blue): `#008542` primary green, `#0f62a8` accent
+blue, `#17752f` success green, `#7a0f12` error maroon, `#f7f6f3` page
+background, `#1f2430` body text.
+
+The accent blue is **one value for both the secondary button and the chart**.
+The previous yellow accent needed a deepened chart variant because `#fbce07` is
+only 2.2:1 on white and washed out as a bar; `#0f62a8` is 6.3:1 and holds its
+shape, so there is no separate chart color. Do not reintroduce one.
 
 Three rules the palette depends on:
 
-- **Yellow only ever carries dark text.** White on `#fbce07` is ~1.5:1 and
-  unreadable, so `button.secondary` overrides the inherited `color: #fff`. This
-  is also why green, not yellow, is the primary: `button`, `nav a.active` and
-  `.toast` all inherit `color: #fff`.
+- **The accent carries white text, and `button.secondary` sets no `color`.**
+  White on `#0f62a8` is 6.3:1; dark `#1f2430` on it is 2.5:1 and fails. The rule
+  deliberately relies on the inherited `color: #fff` from the base `button`
+  rule, so adding a `color` there is a regression, not a clarification. (This
+  inverts the rule that applied to the old yellow accent, which could *only*
+  carry dark text — if you are porting an idea from git history, check which
+  accent it was written for.) `button`, `nav a.active` and `.toast` all set
+  `color: #fff`, so **any** color placed on those surfaces has to work under
+  white text. Under the old yellow accent that constraint was what forced green
+  to be the primary; blue carries white text fine, so the constraint no longer
+  decides which of the two is primary — it is now just convention.
 - **`button:disabled` uses `#85c5a5`, a tint derived from the primary.** It
   contains no literal `#008542`, so a find-and-replace on the primary misses it.
+  It is only correct as long as the primary green stays put; move the primary
+  and this must be re-derived at the same white-mix ratio. It sets no `color`
+  either, so every disabled button — primary *and* secondary — is white on
+  `#85c5a5` at 1.99:1. That is deliberate and uniform (WCAG 1.4.3 exempts
+  inactive controls), but it means a disabled secondary is *not* dark-text like
+  the old yellow one was.
 - **The `info` toast is neutral `#1f2430`, deliberately not the primary.**
   `App.tsx` maps sync state onto toast type in a single toast slot — in-progress
   is `info`, done is `success` (`#17752f`). If `info` took the green primary,
-  a sync would go green → green and show no state change.
+  a sync would go green → green and show no state change. The accent blue is
+  not a substitute here either: the constraint is that in-progress and done stay
+  visibly distinct, so any change to `info` has to be checked against `success`.
 
 **Always `grep -rn "#[0-9a-fA-F]\{3,6\}" src/` when changing colors.** A visual
 check of both the dashboard charts and the rest of the UI is required — there is
