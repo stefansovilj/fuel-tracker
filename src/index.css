@@ -45,7 +45,7 @@ h1 {
   max-width: calc(100% - 32px);
   animation: toast-in 0.2s ease-out;
 }
-.toast.info { background: #dd1d21; }
+.toast.info { background: #1f2430; }
 .toast.success { background: #17752f; }
 .toast.error { background: #7a0f12; }
 
@@ -93,9 +93,9 @@ nav a {
 }
 
 nav a.active {
-  background: #dd1d21;
+  background: #008542;
   color: #fff;
-  border-color: #dd1d21;
+  border-color: #008542;
 }
 
 .card {
@@ -133,7 +133,7 @@ button {
   font-size: 16px;
   font-weight: 600;
   color: #fff;
-  background: #dd1d21;
+  background: #008542;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -147,7 +147,7 @@ button.secondary {
 }
 
 button:disabled {
-  background: #ef9394;
+  background: #85c5a5;
   cursor: default;
 }
 
@@ -246,7 +246,7 @@ th {
   padding: 0;
   font-size: 12px;
   font-weight: 600;
-  color: #dd1d21;
+  color: #008542;
   background: none;
   border: none;
   text-decoration: underline;

@@ -74,16 +74,22 @@ half-restyled app:
 - `src/components/Dashboard.tsx` — **inline hex passed to Recharts** (around
   lines 80, 93, 106, 119). These are invisible to a CSS-only search.
 
-Current palette (Shell-style red and yellow): `#dd1d21` primary red, `#fbce07`
-accent yellow, `#e8a100` chart yellow, `#17752f` success green, `#7a0f12` error
-maroon, `#f7f6f3` page background, `#1f2430` body text.
+Current palette (green and yellow): `#008542` primary green, `#fbce07` accent
+yellow, `#e8a100` chart yellow, `#17752f` success green, `#7a0f12` error maroon,
+`#f7f6f3` page background, `#1f2430` body text.
 
-Two rules the palette depends on:
+Three rules the palette depends on:
 
 - **Yellow only ever carries dark text.** White on `#fbce07` is ~1.5:1 and
-  unreadable, so `button.secondary` overrides the inherited `color: #fff`.
-- **`button:disabled` uses `#ef9394`, a tint derived from the primary.** It
-  contains no literal `#dd1d21`, so a find-and-replace on the primary misses it.
+  unreadable, so `button.secondary` overrides the inherited `color: #fff`. This
+  is also why green, not yellow, is the primary: `button`, `nav a.active` and
+  `.toast` all inherit `color: #fff`.
+- **`button:disabled` uses `#85c5a5`, a tint derived from the primary.** It
+  contains no literal `#008542`, so a find-and-replace on the primary misses it.
+- **The `info` toast is neutral `#1f2430`, deliberately not the primary.**
+  `App.tsx` maps sync state onto toast type in a single toast slot — in-progress
+  is `info`, done is `success` (`#17752f`). If `info` took the green primary,
+  a sync would go green → green and show no state change.
 
 **Always `grep -rn "#[0-9a-fA-F]\{3,6\}" src/` when changing colors.** A visual
 check of both the dashboard charts and the rest of the UI is required — there is

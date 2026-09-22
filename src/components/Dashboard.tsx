@@ -77,7 +77,7 @@ export function Dashboard({ stats, onExport, eurRate }: Props) {
             <XAxis dataKey="date" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} />
             <Tooltip formatter={(value) => fixed2(Number(value))} />
-            <Line type="monotone" dataKey="consumption" stroke="#dd1d21" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="consumption" stroke="#008542" strokeWidth={2} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>
@@ -90,7 +90,7 @@ export function Dashboard({ stats, onExport, eurRate }: Props) {
             <XAxis dataKey="month" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} />
             <Tooltip formatter={(value) => fixed2(Number(value))} />
-            <Bar dataKey="cost" fill="#dd1d21" />
+            <Bar dataKey="cost" fill="#008542" />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -116,7 +116,7 @@ export function Dashboard({ stats, onExport, eurRate }: Props) {
             <XAxis dataKey="year" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} />
             <Tooltip formatter={(value) => fixed2(Number(value))} />
-            <Bar dataKey="cost" fill="#dd1d21" />
+            <Bar dataKey="cost" fill="#008542" />
           </BarChart>
         </ResponsiveContainer>
       </div>
