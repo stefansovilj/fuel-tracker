@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-09-19T08:28:46.115Z",
+  "fetchedAt": "2026-09-22T08:58:35.146Z",
   "source": "https://benzinko.com/server/api/stations/featured",
   "currency": "RSD",
   "stations": [
@@ -11,8 +11,8 @@
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
-          "price": 106.9,
-          "pricedAt": "2026-09-18T10:40:35"
+          "price": 107.9,
+          "pricedAt": "2026-09-21T11:59:29"
         },
         {
           "id": 6,
@@ -66,8 +66,8 @@
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
-          "price": 106,
-          "pricedAt": "2026-09-18T10:40:54"
+          "price": 107,
+          "pricedAt": "2026-09-21T12:01:46"
         },
         {
           "id": 10,
@@ -87,8 +87,8 @@
           "id": 12,
           "displayName": "Maxx BMB S100",
           "category": "BENZIN",
-          "price": 238.9,
-          "pricedAt": "2026-09-18T10:40:42"
+          "price": 239.9,
+          "pricedAt": "2026-09-21T12:01:59"
         }
       ]
     },
@@ -114,22 +114,22 @@
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
-          "price": 105.9,
-          "pricedAt": "2026-09-18T10:41:02"
+          "price": 106.9,
+          "pricedAt": "2026-09-21T12:01:30"
         },
         {
           "id": 13,
           "displayName": "Dizel Gold",
           "category": "DIZEL",
-          "price": 248.9,
-          "pricedAt": "2026-09-18T10:41:00"
+          "price": 250.9,
+          "pricedAt": "2026-09-21T12:01:31"
         },
         {
           "id": 14,
           "displayName": "BMB 100",
           "category": "BENZIN",
-          "price": 227.9,
-          "pricedAt": "2026-09-18T10:41:01"
+          "price": 229.9,
+          "pricedAt": "2026-09-21T12:01:30"
         }
       ]
     },
@@ -141,15 +141,15 @@
           "id": 1,
           "displayName": "GDrive 100",
           "category": "BENZIN",
-          "price": 228,
-          "pricedAt": "2026-09-18T10:41:04"
+          "price": 230,
+          "pricedAt": "2026-09-21T12:00:01"
         },
         {
           "id": 2,
           "displayName": "GDrive D",
           "category": "DIZEL",
-          "price": 249,
-          "pricedAt": "2026-09-18T10:41:05"
+          "price": 251,
+          "pricedAt": "2026-09-21T12:00:01"
         },
         {
           "id": 3,
@@ -169,8 +169,8 @@
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
-          "price": 106.9,
-          "pricedAt": "2026-09-18T10:41:06"
+          "price": 107.9,
+          "pricedAt": "2026-09-21T12:00:00"
         }
       ]
     },
@@ -189,8 +189,8 @@
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
-          "price": 106.9,
-          "pricedAt": "2026-09-18T10:41:11"
+          "price": 107.4,
+          "pricedAt": "2026-09-21T12:00:52"
         },
         {
           "id": 14,
@@ -210,8 +210,8 @@
           "id": 16,
           "displayName": "Gold Evro Dizel",
           "category": "DIZEL",
-          "price": 251.9,
-          "pricedAt": "2026-09-18T10:41:11"
+          "price": 252.9,
+          "pricedAt": "2026-09-21T12:01:13"
         }
       ]
     },
@@ -244,15 +244,15 @@
           "id": 17,
           "displayName": "Expert Dizel",
           "category": "DIZEL",
-          "price": 248.9,
-          "pricedAt": "2026-09-18T10:41:17"
+          "price": 250.9,
+          "pricedAt": "2026-09-21T12:00:40"
         },
         {
           "id": 18,
           "displayName": "Expert BMB",
           "category": "BENZIN",
-          "price": 227.9,
-          "pricedAt": "2026-09-18T10:41:16"
+          "price": 229.9,
+          "pricedAt": "2026-09-21T12:00:39"
         }
       ]
     }
