@@ -27,8 +27,17 @@ Restate the request in one sentence and say which route you are taking.
 Delegate to **`feature-analyst`** (read-only). Pass the request verbatim.
 
 Relay its size verdict and anything under **Unknowns** to the user before
-continuing. If an Unknown would change what gets built, ask now — one question,
-not a survey.
+continuing.
+
+**Resolve the Unknowns yourself. Do not stop to ask.** For each one, pick what a
+careful colleague would pick, and record it in the Stage 3 plan as an explicit
+assumption with one line of reasoning. Plan approval is the gate that catches a
+wrong call — correcting an assumption there costs the user a sentence, which is
+why it does not need its own question first.
+
+Ask only when proceeding under *any* assumption would be unsafe, or would make
+the work useless if the guess is wrong. The existence of a choice is not a
+reason to ask; an unrecoverable consequence is.
 
 ## Stage 2 — Route
 
