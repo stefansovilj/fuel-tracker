@@ -93,9 +93,9 @@ nav a {
 }
 
 nav a.active {
-  background: #008542;
+  background: #b3261a;
   color: #fff;
-  border-color: #008542;
+  border-color: #b3261a;
 }
 
 .card {
@@ -133,21 +133,25 @@ button {
   font-size: 16px;
   font-weight: 600;
   color: #fff;
-  background: #008542;
+  background: #b3261a;
   border: none;
   border-radius: 8px;
   cursor: pointer;
 }
 
-/* The accent purple carries white text — 8.7:1 on #6b21a8, where dark #1f2430
-   would be 1.85:1 and fail. So this rule sets no `color` at all and keeps the
-   inherited `color: #fff` from the base button rule above. Do not add one. */
+/* Yellow can't carry white text — #eab308 is 1.9:1 with white, well under AA.
+   Unlike the red/purple/blue accents this palette has used before, this rule
+   needs its own dark `color` (8.1:1 on #eab308). If you port this rule to a
+   future accent, check whether that accent holds white text before dropping
+   this override. */
 button.secondary {
-  background: #6b21a8;
+  background: #eab308;
+  color: #1f2430;
 }
 
 button:disabled {
-  background: #85c5a5;
+  background: #db9791;
+  color: #fff;
   cursor: default;
 }
 
@@ -246,7 +250,7 @@ th {
   padding: 0;
   font-size: 12px;
   font-weight: 600;
-  color: #008542;
+  color: #b3261a;
   background: none;
   border: none;
   text-decoration: underline;
