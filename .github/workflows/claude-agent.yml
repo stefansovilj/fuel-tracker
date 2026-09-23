@@ -237,6 +237,53 @@ jobs:
 
       # ------------------------------------------------------------- handback
 
+      - name: Render the review packet
+        if: always() && steps.verdict.outcome != 'skipped'
+        run: |
+          RESULT="$RUNNER_TEMP/out/result.json"
+          OUT="$RUNNER_TEMP/out/packet.md"
+          SO=$(jq -r '.structured_output // empty' "$RESULT" 2>/dev/null || true)
+
+          # With --json-schema in effect, the agent's final message IS the schema
+          # object, so `.result` holds JSON rather than prose. Render Markdown
+          # from the fields instead of pasting either one raw.
+          if [ -z "$SO" ]; then
+            jq -r '.result // "The agent produced no review packet; see the run log."' \
+              "$RESULT" > "$OUT" 2>/dev/null \
+              || echo "The agent produced no review packet; see the run log." > "$OUT"
+            exit 0
+          fi
+
+          echo "$SO" | jq -r '
+            def flat: (. // "—") | tostring | gsub("\\s+"; " ");
+            def bullets: if ((. // []) | length) > 0
+                         then (map("- " + (. | gsub("\\s+"; " "))) | join("\n"))
+                         else "_none_" end;
+            def section($t; $b): "## " + $t + "\n\n" + $b + "\n";
+
+            [
+              section("What changed"; (.summary | flat)),
+
+              (if .blockedReason
+                 then section("Why it stopped"; (.blockedReason | flat))
+                 else empty end),
+
+              section("Gates";
+                ([ "- **build** — " + (.gates.build   | flat),
+                   "- **test** — "  + (.gates.test    | flat),
+                   "- **lint** — "  + (.gates.lint    | flat),
+                   "- **visual** — " + ((.gates.visual // .gates.visualSkippedBecause) | flat)
+                 ] | join("\n"))),
+
+              section("Files changed"; (.filesChanged | bullets)),
+              section("Assumptions"; (.assumptions | bullets)),
+              section("Needs your eyes"; (.needsHumanEyes | bullets))
+            ] | join("\n")
+          ' > "$OUT"
+
+          echo "--- packet ---"
+          cat "$OUT"
+
       # A runner is destroyed when the job ends, so an edit that is not pushed
       # here is gone. Every run that produced a diff therefore gets a branch and
       # a PR, whatever the verdict — a blocked attempt is often worth reading,
@@ -293,8 +340,7 @@ jobs:
               echo "> not lost, not because it is ready. Read the packet before merging."
               echo
             fi
-            jq -r '.result' "$RUNNER_TEMP/out/result.json" 2>/dev/null \
-              || echo "The agent run failed before producing a review packet; see the run log."
+            cat "$RUNNER_TEMP/out/packet.md"
             echo
             echo "---"
             echo "Generated from #$ISSUE by [run ${GITHUB_RUN_ID}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})."
@@ -351,7 +397,7 @@ jobs:
           {
             echo "**Agent [run ${GITHUB_RUN_ID}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})** — $NOTE"
             echo
-            jq -r '.result' "$RUNNER_TEMP/out/result.json" 2>/dev/null \
+            cat "$RUNNER_TEMP/out/packet.md" 2>/dev/null \
               || echo "The agent run failed before producing a review packet; see the run log."
           } > "$RUNNER_TEMP/comment.md"
 
