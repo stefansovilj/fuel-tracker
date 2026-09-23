@@ -170,21 +170,45 @@ jobs:
           # is told to pick a fresh directory of its own, and screenshots written
           # anywhere else are not collected by the artifact upload.
           claude -p "/feature Build the feature described on stdin. Produce your review packet as usual. If you run visual-verifier, its screenshots must be written to \$SHOT_DIR. Do not commit or push — this pipeline commits your working tree for you, so leaving the change uncommitted is the expected end state and is NOT a reason to report 'blocked'. Report 'completed' whenever the change is implemented and the gates pass." \
+          #
+          # stream-json rather than json: subagent activity is only visible as
+          # events on the stream. awk stamps each line with a wall-clock second
+          # as it arrives, which is where the per-subagent durations come from —
+          # the events carry no timestamps of their own.
             --permission-mode auto \
             --permission-prompts none \
-            --output-format json \
+            --output-format stream-json --verbose \
             --json-schema "$SCHEMA" \
             --max-turns 80 \
             < "$RUNNER_TEMP/request.md" \
-            > "$RUNNER_TEMP/out/result.json"
-          CLAUDE_EXIT=$?
+            | awk '{ printf "%d\t%s\n", systime(), $0; fflush() }' \
+            > "$RUNNER_TEMP/out/stream.tsv"
+          CLAUDE_EXIT=${PIPESTATUS[0]}
           set -e
 
           echo "claude exited with $CLAUDE_EXIT"
-          if [ ! -s "$RUNNER_TEMP/out/result.json" ]; then
+          if [ ! -s "$RUNNER_TEMP/out/stream.tsv" ]; then
             echo "::error::The agent produced no output."
             exit 1
           fi
+
+          # Collapse the stream back to the single result object every later
+          # step already expects, so nothing downstream knows the format changed.
+          cut -f2- "$RUNNER_TEMP/out/stream.tsv" \
+            | jq -s 'map(select(.type == "result")) | last // {}' \
+            > "$RUNNER_TEMP/out/result.json"
+
+          # Belt and braces: if the schema output did not land in
+          # structured_output but the final message is itself the schema object,
+          # promote it rather than losing the verdict.
+          if [ -z "$(jq -r '.structured_output // empty' "$RUNNER_TEMP/out/result.json")" ]; then
+            jq 'if ((.result // "") | test("^\\s*\\{"))
+                then . + {structured_output: ((.result | fromjson?) // null)}
+                else . end' \
+              "$RUNNER_TEMP/out/result.json" > "$RUNNER_TEMP/out/result.tmp"
+            mv "$RUNNER_TEMP/out/result.tmp" "$RUNNER_TEMP/out/result.json"
+          fi
+
           exit $CLAUDE_EXIT
 
       # -------------------------------------------------------------- verdict
@@ -237,6 +261,69 @@ jobs:
 
       # ------------------------------------------------------------- handback
 
+      - name: Summarise the subagent runs
+        if: always() && steps.verdict.outcome != 'skipped'
+        run: |
+          STREAM="$RUNNER_TEMP/out/stream.tsv"
+          OUT="$RUNNER_TEMP/out/subagents.md"
+          : > "$OUT"
+          [ -s "$STREAM" ] || exit 0
+
+          # Each line is "<epoch>\t<event json>". A subagent starts at the
+          # tool_use block that spawns it and ends at the matching tool_result,
+          # so the elapsed time between those two lines is its wall clock.
+          # Only top-level calls (parent_tool_use_id == null) are listed —
+          # anything nested belongs to a subagent's own transcript.
+          jq -R -s -r '
+            def clean: (. // "") | tostring | gsub("\\s+"; " ");
+
+            [ split("\n")[] | select(length > 0)
+              | (index("\t")) as $i
+              | select($i != null)
+              | { ts: ((.[0:$i] | tonumber?) // null),
+                  ev: ((.[$i+1:] | fromjson?) // null) }
+              | select(.ts != null and .ev != null
+                       and (.ev.parent_tool_use_id // null) == null)
+            ] as $rows
+
+            | ([ $rows[] | . as $r | ($r.ev.message.content // [])[]
+                 | select(.type == "tool_use" and (.name == "Task" or .name == "Agent"))
+                 | { id: .id,
+                     agent: (.input.subagent_type // .name),
+                     desc: ((.input.description // "") | clean),
+                     t0: $r.ts } ]) as $starts
+
+            | ([ $rows[] | . as $r | ($r.ev.message.content // [])[]
+                 | select(.type == "tool_result")
+                 | { id: .tool_use_id,
+                     t1: $r.ts,
+                     out: ((if (.content | type) == "array"
+                            then ([.content[].text // ""] | join(" "))
+                            else (.content // "") end) | clean) } ]) as $ends
+
+            | if ($starts | length) == 0 then "" else
+                ( [ "## Subagents", "",
+                    "| Agent | Task | Duration | Returned |",
+                    "| --- | --- | --- | --- |" ]
+                  + [ $starts[]
+                      | . as $s
+                      | (($ends | map(select(.id == $s.id)) | first) // null) as $e
+                      | "| `" + $s.agent + "` "
+                        + "| " + (($s.desc | .[0:60]) | gsub("\\|"; "/")) + " "
+                        + "| " + (if $e then (($e.t1 - $s.t0) | tostring) + "s" else "—" end) + " "
+                        + "| " + (if $e
+                                  then (($e.out | .[0:180]) | gsub("\\|"; "/"))
+                                       + (if ($e.out | length) > 180 then " …" else "" end)
+                                  else "_no result captured_" end)
+                        + " |" ]
+                  + [ "" ]
+                ) | join("\n")
+              end
+          ' "$STREAM" > "$OUT"
+
+          echo "--- subagents ---"
+          cat "$OUT"
+
       - name: Render the review packet
         if: always() && steps.verdict.outcome != 'skipped'
         run: |
@@ -251,6 +338,10 @@ jobs:
             jq -r '.result // "The agent produced no review packet; see the run log."' \
               "$RESULT" > "$OUT" 2>/dev/null \
               || echo "The agent produced no review packet; see the run log." > "$OUT"
+            if [ -s "$RUNNER_TEMP/out/subagents.md" ]; then
+              printf '\n' >> "$OUT"
+              cat "$RUNNER_TEMP/out/subagents.md" >> "$OUT"
+            fi
             exit 0
           fi
 
@@ -280,6 +371,11 @@ jobs:
               section("Needs your eyes"; (.needsHumanEyes | bullets))
             ] | join("\n")
           ' > "$OUT"
+
+          # Who did the work, and for how long.
+          if [ -s "$RUNNER_TEMP/out/subagents.md" ]; then
+            cat "$RUNNER_TEMP/out/subagents.md" >> "$OUT"
+          fi
 
           echo "--- packet ---"
           cat "$OUT"

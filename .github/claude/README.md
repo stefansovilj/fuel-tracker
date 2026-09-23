@@ -119,6 +119,19 @@ but pushes nothing and opens no PR. The `labeled` path is always live.
 
 ## What the workflow does with the verdict
 
+The run uses `--output-format stream-json`, not `json`, for one reason: subagent
+activity is only visible as events on the stream. `awk` stamps each line with a
+wall-clock second as it arrives — the events carry no timestamps of their own —
+and the *Summarise the subagent runs* step pairs each `Task`/`Agent` tool call
+with its matching `tool_result` to produce the **Subagents** table at the bottom
+of every packet: which agent ran, what it was asked, how long it took, and what
+it handed back. Nested calls (`parent_tool_use_id` set) are excluded; they
+belong to a subagent's own transcript. The full stream is in the artifact as
+`stream.tsv` if you need to go deeper.
+
+The stream is then collapsed back to its single `result` event as `result.json`,
+so every step after that is unchanged.
+
 `--json-schema` makes the run return
 [`feature-result.schema.json`](feature-result.schema.json) in
 `result.structured_output`, so the handback steps branch on data rather than on
