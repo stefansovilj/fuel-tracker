@@ -103,7 +103,7 @@ export function Dashboard({ stats, onExport, eurRate }: Props) {
             <XAxis dataKey="year" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} />
             <Tooltip />
-            <Bar dataKey="km" fill="#0f62a8" />
+            <Bar dataKey="km" fill="#6b21a8" />
           </BarChart>
         </ResponsiveContainer>
       </div>
