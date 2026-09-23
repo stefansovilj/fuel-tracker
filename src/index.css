@@ -139,11 +139,11 @@ button {
   cursor: pointer;
 }
 
-/* The accent blue carries white text — 6.3:1 on #0f62a8, where dark #1f2430
-   would be 2.5:1 and fail. So this rule sets no `color` at all and keeps the
+/* The accent purple carries white text — 8.7:1 on #6b21a8, where dark #1f2430
+   would be 1.85:1 and fail. So this rule sets no `color` at all and keeps the
    inherited `color: #fff` from the base button rule above. Do not add one. */
 button.secondary {
-  background: #0f62a8;
+  background: #6b21a8;
 }
 
 button:disabled {
