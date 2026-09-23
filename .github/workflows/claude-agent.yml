@@ -85,6 +85,20 @@ jobs:
           npm install -g @anthropic-ai/claude-code@latest
           claude --version
 
+      - name: Trust the workspace
+        run: |
+          # Without this, Claude Code logs "Ignoring N permissions.allow entries
+          # from .claude/settings.json: this workspace has not been trusted" and
+          # runs with the project's permission rules inert — including the
+          # git-push deny that is the repo's main guard rail. It is our own
+          # checkout of our own repo, so mark it trusted explicitly.
+          CFG="$HOME/.claude.json"
+          [ -f "$CFG" ] || echo '{}' > "$CFG"
+          jq --arg p "$GITHUB_WORKSPACE" \
+            '.projects[$p].hasTrustDialogAccepted = true' "$CFG" > "$CFG.tmp"
+          mv "$CFG.tmp" "$CFG"
+          jq '.projects' "$CFG"
+
       - name: Prepare the browser harness for visual-verifier
         run: |
           # visual-verifier drives a real Chromium. playwright-core is
@@ -180,35 +194,46 @@ jobs:
         if: always() && steps.run.outcome != 'skipped'
         run: |
           RESULT="$RUNNER_TEMP/out/result.json"
+
+          # Git is the ground truth for "is there anything to commit" — never
+          # the model's self-report, and never a branch of this script that
+          # forgot to look. Capture it FIRST and unconditionally: an early exit
+          # that hardcoded has_changes=false is why run 35851929859 opened no
+          # PR despite a working tree full of edits.
+          git add -A -N > /dev/null 2>&1 || true
+          git status --porcelain > "$RUNNER_TEMP/out/status.txt" 2>/dev/null || true
+          git diff > "$RUNNER_TEMP/out/changes.patch" 2>/dev/null || true
+
+          if [ -s "$RUNNER_TEMP/out/status.txt" ]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            cat "$RUNNER_TEMP/out/status.txt"
+          else
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "Working tree is clean — the agent changed nothing."
+          fi
+
+          # session_id is kept so a follow-up run can continue this same
+          # conversation with `claude -p --resume "$SID"` instead of starting cold.
+          echo "session_id=$(jq -r '.session_id // ""' "$RESULT" 2>/dev/null)" >> "$GITHUB_OUTPUT"
+
           SO=$(jq -r '.structured_output // empty' "$RESULT" 2>/dev/null || true)
 
           if [ -z "$SO" ]; then
-            echo "::warning::No structured output; treating as blocked."
-            echo "status=blocked"      >> "$GITHUB_OUTPUT"
-            echo "has_changes=false"   >> "$GITHUB_OUTPUT"
+            # The verdict is only used for labels and draft-vs-ready. Losing it
+            # must not cost the work — the branch and PR still happen above.
+            echo "::warning::No structured output in result.json; falling back to status=blocked."
+            {
+              echo "status=blocked"
+              echo "commit_message=Agent changes for #$ISSUE"
+            } >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           echo "$SO" | jq .
-
-          STATUS=$(echo "$SO" | jq -r '.status')
-          MSG=$(echo "$SO" | jq -r '.commitMessage // "Apply agent changes"')
-          # Kept so a follow-up run can continue this same conversation with
-          # `claude -p --resume "$SID"` instead of starting cold.
-          SID=$(jq -r '.session_id // ""' "$RESULT")
-
           {
-            echo "status=$STATUS"
-            echo "commit_message=$MSG"
-            echo "session_id=$SID"
+            echo "status=$(echo "$SO" | jq -r '.status')"
+            echo "commit_message=$(echo "$SO" | jq -r '.commitMessage // "Apply agent changes"')"
           } >> "$GITHUB_OUTPUT"
-
-          if [ -n "$(git status --porcelain)" ]; then
-            echo "has_changes=true" >> "$GITHUB_OUTPUT"
-            git status --short
-          else
-            echo "has_changes=false" >> "$GITHUB_OUTPUT"
-          fi
 
       # ------------------------------------------------------------- handback
 

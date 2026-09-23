@@ -168,6 +168,16 @@ own. Re-adding it is how you retry.
 - **Stage 0 refuses a dirty tree.** Do not add steps that write into the working
   directory before the agent runs. `$RUNNER_TEMP` for everything else is what
   keeps this true.
+- **An untrusted workspace silently disables the project's permission rules.**
+  A `-p` run shows no trust dialog, and without one Claude Code logs `Ignoring N
+  permissions.allow entries from .claude/settings.json` and runs with them
+  inert — the `git push` deny included. The *Trust the workspace* step writes
+  `hasTrustDialogAccepted` into `~/.claude.json` to prevent that. Check the run
+  log for that warning if the rules ever seem not to apply.
+- **The verdict must never gate the work.** `has_changes` comes from `git
+  status`, computed unconditionally before the verdict is parsed, and the
+  artifact carries `changes.patch` and `status.txt` on every run. A missing or
+  malformed `structured_output` costs you a label, not the branch.
 - **Claude does not commit, and must not report that as a failure.** Stage 8 of
   the skill requires explicit human go-ahead to commit or push, and with
   `--permission-prompts none` it cannot ask for one — so it never will. The
