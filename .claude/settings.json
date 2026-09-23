@@ -14,7 +14,8 @@
       "Glob",
       "Grep",
       "WebFetch",
-      "WebSearch"
+      "WebSearch",
+      "Agent"
     ]
   },
   "autoMode": {
