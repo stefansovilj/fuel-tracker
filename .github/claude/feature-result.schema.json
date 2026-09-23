@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Feature pipeline result",
+  "description": "Machine-readable verdict for one /feature run, so the pipeline can branch without parsing prose. The human-readable review packet still arrives in the `result` field alongside this.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "size", "summary", "filesChanged", "gates", "needsHumanEyes"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["completed", "blocked", "too-large"],
+      "description": "completed = the change is implemented and every gate the skill ran has passed. blocked = something stopped the run (dirty tree, a gate that could not be made to pass, two failed verifier rounds). too-large = Stage 2 refused to build it in one pass and proposed a split."
+    },
+    "size": {
+      "type": "string",
+      "enum": ["trivial", "small", "medium", "large"],
+      "description": "The size verdict from feature-analyst."
+    },
+    "summary": {
+      "type": "string",
+      "description": "One paragraph, plain language: what changed and why."
+    },
+    "blockedReason": {
+      "type": "string",
+      "description": "Present only when status is blocked or too-large. What stopped the run, in one or two sentences."
+    },
+    "filesChanged": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Repo-relative paths actually modified. Empty when nothing was written."
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["build", "test", "lint"],
+      "properties": {
+        "build": {
+          "type": "string",
+          "description": "Result of `npm run build`, with real output, e.g. \"passed\" or the first error."
+        },
+        "test": {
+          "type": "string",
+          "description": "Result of `npm test` with real numbers, e.g. \"42 passed, 0 failed\"."
+        },
+        "lint": {
+          "type": "string",
+          "description": "Result of `npm run lint`. The 4 pre-existing App.tsx warnings are the accepted baseline; say so rather than reporting them as failures."
+        },
+        "visual": {
+          "type": "string",
+          "description": "visual-verifier's verdict, present only when it ran. Include the computed values it measured, not just PASS."
+        },
+        "visualSkippedBecause": {
+          "type": "string",
+          "description": "Present only when the change renders nothing and visual-verifier was therefore not run. Name what you considered."
+        }
+      }
+    },
+    "needsHumanEyes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Genuine judgment calls left for the reviewer, already narrowed by what the machine settled. Do not list checks a gate has done. Empty array if there are none."
+    },
+    "assumptions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Unknowns the analyst raised that were resolved without asking, each with the one-line reasoning. This is the list a reviewer scans first."
+    },
+    "commitMessage": {
+      "type": "string",
+      "description": "Subject line only, imperative mood, no trailing period. Used verbatim as the commit subject and PR title."
+    }
+  }
+}

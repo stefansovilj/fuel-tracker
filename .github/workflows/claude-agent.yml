@@ -1,0 +1,297 @@
+# Issue → /feature → pull request.
+#
+# A collaborator labels an issue `agent`. This workflow builds a prompt from the
+# issue, runs the /feature pipeline in one `claude -p` call, and opens a PR back
+# against master. Setup and the failure modes are in .github/claude/README.md.
+#
+# The label is the authorization gate: issue bodies come from anyone, but only
+# accounts with triage or write access can apply a label.
+
+name: Claude agent
+
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Issue number to work on
+        required: true
+        type: string
+      dry_run:
+        description: Run the agent but push nothing and open no PR
+        type: boolean
+        default: true
+
+permissions:
+  contents: write         # push the branch
+  pull-requests: write    # open the PR
+  issues: write           # comment and relabel
+
+# One run per issue. Re-labelling while a run is in flight queues rather than
+# racing two agents over the same working tree.
+concurrency:
+  group: claude-agent-${{ github.event.issue.number || inputs.issue }}
+  cancel-in-progress: false
+
+env:
+  AGENT_LABEL: agent
+  ISSUE: ${{ github.event.issue.number || inputs.issue }}
+  DRY_RUN: ${{ inputs.dry_run || 'false' }}
+
+jobs:
+  agent:
+    # On the `labeled` event, only the agent label starts a run — every other
+    # label on every other issue is ignored.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.label.name == 'agent'
+    runs-on: ubuntu-latest
+    # The agent run is synchronous and context-heavy. A small feature is ~10
+    # minutes; a medium one with a visual gate can be 30+.
+    timeout-minutes: 75
+
+    steps:
+      # ---------------------------------------------------------------- setup
+
+      # Fail in five seconds with a readable message rather than three minutes
+      # into the run with an auth error that looks like a bad token.
+      - name: Check the agent credential is present
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          if [ -z "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]; then
+            echo "::error::Secret CLAUDE_CODE_OAUTH_TOKEN is not set. Generate one locally with 'claude setup-token' and add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          echo "Credential present."
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Stage 0 of the skill refuses a dirty tree; a fresh checkout is clean.
+
+      - uses: actions/setup-node@v4
+        with:
+          # Not 20: vitest 5 declares engines ^22.12 || ^24 || >=26, so `npm test`
+          # — the behavior gate — does not run on 20. 24 matches local dev.
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies and Claude Code
+        run: |
+          npm ci
+          # --permission-prompts none requires Claude Code v2.1.259 or later.
+          npm install -g @anthropic-ai/claude-code@latest
+          claude --version
+
+      - name: Prepare the browser harness for visual-verifier
+        run: |
+          # visual-verifier drives a real Chromium. playwright-core is
+          # deliberately NOT a project dependency, so install it OUTSIDE the
+          # repo — anything written inside the tree would land in the commit.
+          PW_DIR="$RUNNER_TEMP/pw"
+          mkdir -p "$PW_DIR"
+          cd "$PW_DIR"
+          npm init -y > /dev/null
+          npm i playwright-core --silent
+
+          CHROME=$(command -v google-chrome || command -v chromium-browser || true)
+          if [ -z "$CHROME" ]; then
+            echo "::warning::No system Chrome found; visual-verifier will look for one itself."
+          fi
+
+          {
+            echo "PW_CORE=$PW_DIR/node_modules/playwright-core"
+            echo "CHROME_EXE=$CHROME"
+            echo "SHOT_DIR=$RUNNER_TEMP/out/screenshots"
+          } >> "$GITHUB_ENV"
+
+          mkdir -p "$RUNNER_TEMP/out/screenshots"
+
+      # --------------------------------------------------------------- prompt
+
+      - name: Turn the issue into a prompt
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue view "$ISSUE" --json number,title,body,labels \
+            > "$RUNNER_TEMP/issue.json"
+
+          # Issue bodies are already Markdown, so no markup to strip.
+          {
+            echo "# Issue #$ISSUE"
+            echo
+            echo "## Title"
+            jq -r '.title' "$RUNNER_TEMP/issue.json"
+            echo
+            echo "## Body"
+            jq -r '.body // "(no description)"' "$RUNNER_TEMP/issue.json"
+          } > "$RUNNER_TEMP/request.md"
+
+          echo "--- prompt ---"
+          cat "$RUNNER_TEMP/request.md"
+
+      # ------------------------------------------------------------ the agent
+
+      - name: Run the agent
+        id: run
+        env:
+          # Subscription auth, not API billing: a long-lived token from
+          # `claude setup-token`. Swap to ANTHROPIC_API_KEY here (and in the
+          # credential check above) to move this repo onto pay-as-you-go.
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          SCHEMA=$(cat .github/claude/feature-result.schema.json)
+
+          # The prompt string is a FIXED LITERAL and the issue text arrives on
+          # stdin. Interpolating a body that anyone on the internet can write
+          # into the command line would hand its backticks to the shell.
+          set +e
+          # No --max-budget-usd: on subscription auth there is no per-run bill to
+          # cap, and the reported figure is a client-side estimate either way. The
+          # runaway guards are --max-turns below and the job's timeout-minutes.
+          #
+          # SHOT_DIR is exported to this shell, but say it explicitly: visual-verifier
+          # is told to pick a fresh directory of its own, and screenshots written
+          # anywhere else are not collected by the artifact upload.
+          claude -p "/feature Build the feature described on stdin. Produce your review packet as usual. If you run visual-verifier, its screenshots must be written to \$SHOT_DIR." \
+            --permission-mode auto \
+            --permission-prompts none \
+            --output-format json \
+            --json-schema "$SCHEMA" \
+            --max-turns 80 \
+            < "$RUNNER_TEMP/request.md" \
+            > "$RUNNER_TEMP/out/result.json"
+          CLAUDE_EXIT=$?
+          set -e
+
+          echo "claude exited with $CLAUDE_EXIT"
+          if [ ! -s "$RUNNER_TEMP/out/result.json" ]; then
+            echo "::error::The agent produced no output."
+            exit 1
+          fi
+          exit $CLAUDE_EXIT
+
+      # -------------------------------------------------------------- verdict
+
+      - name: Read the verdict
+        id: verdict
+        if: always() && steps.run.outcome != 'skipped'
+        run: |
+          RESULT="$RUNNER_TEMP/out/result.json"
+          SO=$(jq -r '.structured_output // empty' "$RESULT" 2>/dev/null || true)
+
+          if [ -z "$SO" ]; then
+            echo "::warning::No structured output; treating as blocked."
+            echo "status=blocked"      >> "$GITHUB_OUTPUT"
+            echo "has_changes=false"   >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "$SO" | jq .
+
+          STATUS=$(echo "$SO" | jq -r '.status')
+          MSG=$(echo "$SO" | jq -r '.commitMessage // "Apply agent changes"')
+          # Kept so a follow-up run can continue this same conversation with
+          # `claude -p --resume "$SID"` instead of starting cold.
+          SID=$(jq -r '.session_id // ""' "$RESULT")
+
+          {
+            echo "status=$STATUS"
+            echo "commit_message=$MSG"
+            echo "session_id=$SID"
+          } >> "$GITHUB_OUTPUT"
+
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            git status --short
+          else
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ------------------------------------------------------------- handback
+
+      - name: Commit and push the branch
+        id: push
+        if: >-
+          success() &&
+          steps.verdict.outputs.status == 'completed' &&
+          steps.verdict.outputs.has_changes == 'true' &&
+          env.DRY_RUN != 'true'
+        env:
+          MSG: ${{ steps.verdict.outputs.commit_message }}
+        run: |
+          BRANCH="claude/issue-$ISSUE"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git checkout -b "$BRANCH"
+          git add -A
+          printf '%s\n\nCloses #%s\n\nCo-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>\n' \
+            "$MSG" "$ISSUE" > "$RUNNER_TEMP/msg.txt"
+          git commit -F "$RUNNER_TEMP/msg.txt"
+          git push origin "$BRANCH"
+
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Open the pull request
+        if: steps.push.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MSG: ${{ steps.verdict.outputs.commit_message }}
+          BRANCH: ${{ steps.push.outputs.branch }}
+        run: |
+          {
+            jq -r '.result' "$RUNNER_TEMP/out/result.json"
+            echo
+            echo "---"
+            echo "Generated from #$ISSUE by [run ${GITHUB_RUN_ID}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})."
+            echo
+            echo "🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+          } > "$RUNNER_TEMP/pr-body.md"
+
+          gh pr create \
+            --base master \
+            --head "$BRANCH" \
+            --title "$MSG" \
+            --body-file "$RUNNER_TEMP/pr-body.md"
+
+      - name: Report back on the issue
+        if: always() && steps.verdict.outcome != 'skipped'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STATUS: ${{ steps.verdict.outputs.status }}
+        run: |
+          case "$STATUS" in
+            completed) NOTE="Branch pushed and a PR opened." ; NEXT="agent:done" ;;
+            too-large) NOTE="Too large for one pass — the split proposal is below. Pick a slice and re-label." ; NEXT="agent:needs-split" ;;
+            *)         NOTE="Blocked. Nothing was committed." ; NEXT="agent:blocked" ;;
+          esac
+
+          if [ "$DRY_RUN" = "true" ]; then
+            NOTE="$NOTE (dry run — nothing was pushed.)"
+          fi
+
+          {
+            echo "**Agent [run ${GITHUB_RUN_ID}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})** — $NOTE"
+            echo
+            jq -r '.result' "$RUNNER_TEMP/out/result.json" 2>/dev/null \
+              || echo "The agent run failed before producing a review packet; see the run log."
+          } > "$RUNNER_TEMP/comment.md"
+
+          gh issue comment "$ISSUE" --body-file "$RUNNER_TEMP/comment.md"
+
+          # Take the trigger label back off so the issue cannot re-fire, and
+          # record where it ended up.
+          gh issue edit "$ISSUE" --remove-label "$AGENT_LABEL" || true
+          gh label create "$NEXT" --color ededed --force > /dev/null 2>&1 || true
+          gh issue edit "$ISSUE" --add-label "$NEXT" || true
+
+      - name: Publish result and screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-run-${{ github.event.issue.number || inputs.issue }}
+          path: ${{ runner.temp }}/out
+          if-no-files-found: warn
