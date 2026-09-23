@@ -155,7 +155,7 @@ jobs:
           # SHOT_DIR is exported to this shell, but say it explicitly: visual-verifier
           # is told to pick a fresh directory of its own, and screenshots written
           # anywhere else are not collected by the artifact upload.
-          claude -p "/feature Build the feature described on stdin. Produce your review packet as usual. If you run visual-verifier, its screenshots must be written to \$SHOT_DIR." \
+          claude -p "/feature Build the feature described on stdin. Produce your review packet as usual. If you run visual-verifier, its screenshots must be written to \$SHOT_DIR. Do not commit or push — this pipeline commits your working tree for you, so leaving the change uncommitted is the expected end state and is NOT a reason to report 'blocked'. Report 'completed' whenever the change is implemented and the gates pass." \
             --permission-mode auto \
             --permission-prompts none \
             --output-format json \
@@ -212,38 +212,64 @@ jobs:
 
       # ------------------------------------------------------------- handback
 
-      - name: Commit and push the branch
+      # A runner is destroyed when the job ends, so an edit that is not pushed
+      # here is gone. Every run that produced a diff therefore gets a branch and
+      # a PR, whatever the verdict — a blocked attempt is often worth reading,
+      # and throwing it away costs a whole re-run to get back. The human decides
+      # what to merge; nothing here can reach master.
+      - name: Commit the working tree to a feature branch
         id: push
         if: >-
-          success() &&
-          steps.verdict.outputs.status == 'completed' &&
+          !cancelled() &&
           steps.verdict.outputs.has_changes == 'true' &&
           env.DRY_RUN != 'true'
         env:
           MSG: ${{ steps.verdict.outputs.commit_message }}
+          STATUS: ${{ steps.verdict.outputs.status }}
         run: |
-          BRANCH="claude/issue-$ISSUE"
+          BRANCH="feature/agent_$ISSUE"
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          # A non-completed verdict is labelled in the subject so it is obvious
+          # in the log, and refs rather than closes the issue.
+          if [ "$STATUS" = "completed" ]; then
+            SUBJECT="$MSG"
+            LINK="Closes #$ISSUE"
+          else
+            SUBJECT="[$STATUS] $MSG"
+            LINK="Refs #$ISSUE"
+          fi
+
           git checkout -b "$BRANCH"
           git add -A
-          printf '%s\n\nCloses #%s\n\nCo-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>\n' \
-            "$MSG" "$ISSUE" > "$RUNNER_TEMP/msg.txt"
+          printf '%s\n\n%s\n\nAgent run %s\n\nCo-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>\n' \
+            "$SUBJECT" "$LINK" "$GITHUB_RUN_ID" > "$RUNNER_TEMP/msg.txt"
           git commit -F "$RUNNER_TEMP/msg.txt"
-          git push origin "$BRANCH"
+
+          # Force-push: re-labelling an issue re-runs the agent, and one branch
+          # per issue that moves is easier to follow than a new branch per run.
+          git push --force origin "HEAD:refs/heads/$BRANCH"
 
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
 
-      - name: Open the pull request
+      - name: Open or update the pull request
+        id: pr
         if: steps.push.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
           MSG: ${{ steps.verdict.outputs.commit_message }}
+          STATUS: ${{ steps.verdict.outputs.status }}
           BRANCH: ${{ steps.push.outputs.branch }}
         run: |
           {
-            jq -r '.result' "$RUNNER_TEMP/out/result.json"
+            if [ "$STATUS" != "completed" ]; then
+              echo "> **Verdict: \`$STATUS\`.** This PR carries the agent's work so it is"
+              echo "> not lost, not because it is ready. Read the packet before merging."
+              echo
+            fi
+            jq -r '.result' "$RUNNER_TEMP/out/result.json" 2>/dev/null \
+              || echo "The agent run failed before producing a review packet; see the run log."
             echo
             echo "---"
             echo "Generated from #$ISSUE by [run ${GITHUB_RUN_ID}](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})."
@@ -251,26 +277,50 @@ jobs:
             echo "🤖 Generated with [Claude Code](https://claude.com/claude-code)"
           } > "$RUNNER_TEMP/pr-body.md"
 
-          gh pr create \
-            --base master \
-            --head "$BRANCH" \
-            --title "$MSG" \
-            --body-file "$RUNNER_TEMP/pr-body.md"
+          EXISTING=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+
+          if [ -n "$EXISTING" ]; then
+            # The force-push already updated the PR's diff; add the new packet
+            # as a comment rather than overwriting the original description.
+            gh pr comment "$EXISTING" --body-file "$RUNNER_TEMP/pr-body.md"
+            PR_URL=$(gh pr view "$EXISTING" --json url --jq .url)
+          else
+            # Anything short of `completed` opens as a draft, so a half-finished
+            # attempt cannot be merged by reflex.
+            if [ "$STATUS" = "completed" ]; then DRAFT=""; else DRAFT="--draft"; fi
+            PR_URL=$(gh pr create \
+              --base master \
+              --head "$BRANCH" \
+              --title "$MSG" \
+              --body-file "$RUNNER_TEMP/pr-body.md" \
+              $DRAFT)
+          fi
+
+          echo "url=$PR_URL" >> "$GITHUB_OUTPUT"
+          echo "Pull request: $PR_URL"
 
       - name: Report back on the issue
         if: always() && steps.verdict.outcome != 'skipped'
         env:
           GH_TOKEN: ${{ github.token }}
           STATUS: ${{ steps.verdict.outputs.status }}
+          HAS_CHANGES: ${{ steps.verdict.outputs.has_changes }}
+          PR_URL: ${{ steps.pr.outputs.url }}
         run: |
           case "$STATUS" in
-            completed) NOTE="Branch pushed and a PR opened." ; NEXT="agent:done" ;;
+            completed) NOTE="Gates passed." ;              NEXT="agent:done" ;;
             too-large) NOTE="Too large for one pass — the split proposal is below. Pick a slice and re-label." ; NEXT="agent:needs-split" ;;
-            *)         NOTE="Blocked. Nothing was committed." ; NEXT="agent:blocked" ;;
+            *)         NOTE="Verdict \`$STATUS\`." ;       NEXT="agent:blocked" ;;
           esac
 
-          if [ "$DRY_RUN" = "true" ]; then
-            NOTE="$NOTE (dry run — nothing was pushed.)"
+          if [ -n "${PR_URL:-}" ]; then
+            NOTE="$NOTE Work is on \`feature/agent_$ISSUE\` — $PR_URL"
+          elif [ "$DRY_RUN" = "true" ]; then
+            NOTE="$NOTE Dry run: nothing was pushed."
+          elif [ "$HAS_CHANGES" != "true" ]; then
+            NOTE="$NOTE No files were changed, so there is no branch to open a PR from."
+          else
+            NOTE="$NOTE The branch could not be pushed — see the run log."
           fi
 
           {

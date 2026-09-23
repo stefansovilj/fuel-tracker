@@ -125,11 +125,26 @@ but pushes nothing and opens no PR. The `labeled` path is always live.
 prose. `result.result` still carries the full human-readable review packet,
 which is what goes into the issue comment and the PR body.
 
-| `status` | Branch + PR | Issue ends up |
+**Every run that changed a file gets a branch and a PR**, whatever the verdict.
+A runner is destroyed when the job ends, so an edit that isn't pushed is gone —
+and a blocked attempt is usually worth reading rather than re-running from
+scratch. The verdict decides how the PR is *presented*, not whether it exists:
+
+| `status` | Pull request | Issue ends up |
 | --- | --- | --- |
-| `completed` | yes | `agent:done`, with the review packet in a comment |
-| `too-large` | no | `agent:needs-split`, with the split proposal |
-| `blocked` | no | `agent:blocked`, with the reason |
+| `completed` | ready for review, `Closes #N` | `agent:done` |
+| `too-large` | **draft**, `[too-large]` subject, `Refs #N` | `agent:needs-split` |
+| `blocked` | **draft**, `[blocked]` subject, `Refs #N` | `agent:blocked` |
+
+The only run that produces no PR is one that changed no files (or a dry run);
+the issue comment says so explicitly.
+
+Branches are `feature/agent_<issue>`, one per issue, force-pushed on each run.
+Re-labelling an issue therefore updates the existing branch and PR rather than
+opening a second one, and the new review packet arrives as a PR comment.
+
+A draft PR cannot be merged by reflex, which is the point: the human decides
+what lands, and nothing in this workflow can reach `master`.
 
 `too-large` is not a failure. Stage 2 of the skill refuses to start a large
 change in one pass; the useful output is the split, and a human picks a slice
@@ -153,10 +168,12 @@ own. Re-adding it is how you retry.
 - **Stage 0 refuses a dirty tree.** Do not add steps that write into the working
   directory before the agent runs. `$RUNNER_TEMP` for everything else is what
   keeps this true.
-- **Claude does not commit.** Stage 8 of the skill requires explicit human
-  go-ahead to commit or push, and with `--permission-prompts none` it cannot ask
-  for one — so it never will. The workflow commits in a plain script step. That
-  is the intended division, not a workaround.
+- **Claude does not commit, and must not report that as a failure.** Stage 8 of
+  the skill requires explicit human go-ahead to commit or push, and with
+  `--permission-prompts none` it cannot ask for one — so it never will. The
+  workflow commits its working tree in a plain script step. The prompt and the
+  schema both say this in as many words, because the first live run reported
+  `blocked` with every gate green purely because it had not committed.
 - **Merging the PR is releasing.** `deploy.yml` fires on push to `master` and
   publishes to Pages. There is no staging. Nothing in this workflow can reach
   master on its own; the merge button is the gate.

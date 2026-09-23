@@ -9,7 +9,7 @@
     "status": {
       "type": "string",
       "enum": ["completed", "blocked", "too-large"],
-      "description": "completed = the change is implemented and every gate the skill ran has passed. blocked = something stopped the run (dirty tree, a gate that could not be made to pass, two failed verifier rounds). too-large = Stage 2 refused to build it in one pass and proposed a split."
+      "description": "completed = the change is implemented in the working tree and every gate the skill ran has passed. Report completed even though nothing is committed: the pipeline commits and pushes for you, and Stage 8 forbids you from doing it yourself, so an uncommitted working tree is the expected end state and never a reason to report blocked. blocked = the change itself could not be produced (a gate that could not be made to pass, two failed verifier rounds, a dirty tree at Stage 0). too-large = Stage 2 refused to build it in one pass and proposed a split."
     },
     "size": {
       "type": "string",
