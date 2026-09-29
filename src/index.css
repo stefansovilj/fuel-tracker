@@ -93,9 +93,9 @@ nav a {
 }
 
 nav a.active {
-  background: #000000;
+  background: #b3261a;
   color: #fff;
-  border-color: #000000;
+  border-color: #b3261a;
 }
 
 .card {
@@ -133,24 +133,23 @@ button {
   font-size: 16px;
   font-weight: 600;
   color: #fff;
-  background: #000000;
+  background: #b3261a;
   border: none;
   border-radius: 8px;
   cursor: pointer;
 }
 
-/* Gray carries white text fine — #555555 is 7.46:1 with white, well over AA.
+/* Green carries white text fine — #17752f is 5.9:1 with white, over AA.
    That's why this rule sets no `color`: it inherits `#fff` from the base
    `button` rule above. If you port this rule to a future accent, check
    whether that accent holds white text before relying on the inherited
-   value — a lighter gray (or yellow, as this app used before) may need its
-   own dark `color` override instead. */
+   value — a light gray or yellow may need its own dark `color` override. */
 button.secondary {
-  background: #555555;
+  background: #17752f;
 }
 
 button:disabled {
-  background: #858585;
+  background: #db9791;
   color: #fff;
   cursor: default;
 }
@@ -250,7 +249,7 @@ th {
   padding: 0;
   font-size: 12px;
   font-weight: 600;
-  color: #000000;
+  color: #b3261a;
   background: none;
   border: none;
   text-decoration: underline;
