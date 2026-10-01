@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-09-27T09:46:05.840Z",
+  "fetchedAt": "2026-10-01T10:40:53.460Z",
   "source": "https://benzinko.com/server/api/stations/featured",
   "currency": "RSD",
   "stations": [
@@ -67,7 +67,7 @@
           "displayName": "TNG",
           "category": "TNG",
           "price": 108,
-          "pricedAt": "2026-09-26T12:03:59.003520601"
+          "pricedAt": "2026-09-26T12:03:59"
         },
         {
           "id": 10,
