@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-10-01T10:40:53.460Z",
+  "fetchedAt": "2026-10-03T09:37:13.545Z",
   "source": "https://benzinko.com/server/api/stations/featured",
   "currency": "RSD",
   "stations": [
@@ -19,14 +19,14 @@
           "displayName": "BMB 95",
           "category": "BENZIN",
           "price": 207,
-          "pricedAt": "2026-09-25T10:28:13"
+          "pricedAt": "2026-10-02T10:20:21"
         },
         {
           "id": 7,
           "displayName": "Evro Dizel",
           "category": "DIZEL",
           "price": 236,
-          "pricedAt": "2026-09-25T10:28:14"
+          "pricedAt": "2026-10-02T10:20:18"
         },
         {
           "id": 8,
@@ -53,14 +53,14 @@
           "displayName": "BMB 95",
           "category": "BENZIN",
           "price": 207,
-          "pricedAt": "2026-09-25T10:28:19"
+          "pricedAt": "2026-10-02T10:20:28"
         },
         {
           "id": 4,
           "displayName": "Evro Dizel",
           "category": "DIZEL",
           "price": 236,
-          "pricedAt": "2026-09-25T10:28:19"
+          "pricedAt": "2026-10-02T10:20:27"
         },
         {
           "id": 5,
@@ -101,14 +101,14 @@
           "displayName": "BMB 95",
           "category": "BENZIN",
           "price": 207,
-          "pricedAt": "2026-09-25T10:28:25"
+          "pricedAt": "2026-10-02T10:20:37"
         },
         {
           "id": 4,
           "displayName": "Evro Dizel",
           "category": "DIZEL",
           "price": 236,
-          "pricedAt": "2026-09-25T10:28:24"
+          "pricedAt": "2026-10-02T10:20:35"
         },
         {
           "id": 5,
@@ -156,14 +156,14 @@
           "displayName": "BMB 95",
           "category": "BENZIN",
           "price": 207,
-          "pricedAt": "2026-09-25T10:28:30"
+          "pricedAt": "2026-10-02T10:20:41"
         },
         {
           "id": 4,
           "displayName": "Evro Dizel",
           "category": "DIZEL",
           "price": 236,
-          "pricedAt": "2026-09-25T10:28:30"
+          "pricedAt": "2026-10-02T10:20:42"
         },
         {
           "id": 5,
@@ -183,7 +183,7 @@
           "displayName": "BMB 95",
           "category": "BENZIN",
           "price": 207,
-          "pricedAt": "2026-09-25T10:28:33"
+          "pricedAt": "2026-10-02T10:20:46"
         },
         {
           "id": 5,
@@ -204,7 +204,7 @@
           "displayName": "Evro Dizel",
           "category": "DIZEL",
           "price": 236,
-          "pricedAt": "2026-09-25T10:28:34"
+          "pricedAt": "2026-10-02T10:20:47"
         },
         {
           "id": 16,
@@ -224,14 +224,14 @@
           "displayName": "BMB 95",
           "category": "BENZIN",
           "price": 207,
-          "pricedAt": "2026-09-25T10:28:39"
+          "pricedAt": "2026-10-02T10:20:50"
         },
         {
           "id": 4,
           "displayName": "Evro Dizel",
           "category": "DIZEL",
           "price": 236,
-          "pricedAt": "2026-09-25T10:28:37"
+          "pricedAt": "2026-10-02T10:20:51"
         },
         {
           "id": 5,
