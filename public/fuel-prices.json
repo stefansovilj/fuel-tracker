@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-10-17T08:13:11.380Z",
+  "fetchedAt": "2026-10-19T09:32:33.564Z",
   "source": "https://benzinko.com/server/api/stations/featured",
   "currency": "RSD",
   "stations": [
@@ -11,8 +11,8 @@
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
-          "price": 108.9,
-          "pricedAt": "2026-10-16T10:28:31"
+          "price": 111.9,
+          "pricedAt": "2026-10-19T08:02:52"
         },
         {
           "id": 6,
@@ -66,15 +66,15 @@
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
-          "price": 108,
-          "pricedAt": "2026-10-16T10:28:35"
+          "price": 110,
+          "pricedAt": "2026-10-19T08:03:43"
         },
         {
           "id": 10,
           "displayName": "Maxx Dizel",
           "category": "DIZEL",
-          "price": 253.4,
-          "pricedAt": "2026-10-16T10:28:37"
+          "price": 253.9,
+          "pricedAt": "2026-10-19T08:03:35"
         },
         {
           "id": 11,
@@ -87,8 +87,8 @@
           "id": 12,
           "displayName": "Maxx BMB S100",
           "category": "BENZIN",
-          "price": 239.9,
-          "pricedAt": "2026-10-16T10:28:38"
+          "price": 238.9,
+          "pricedAt": "2026-10-19T08:03:35"
         }
       ]
     },
@@ -114,8 +114,8 @@
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
-          "price": 107.9,
-          "pricedAt": "2026-10-16T10:28:42"
+          "price": 111.4,
+          "pricedAt": "2026-10-19T08:05:29.921197231"
         },
         {
           "id": 13,
@@ -169,8 +169,8 @@
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
-          "price": 108.4,
-          "pricedAt": "2026-10-16T10:28:46"
+          "price": 110.9,
+          "pricedAt": "2026-10-19T08:05:20"
         }
       ]
     },
@@ -189,8 +189,8 @@
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
-          "price": 107.4,
-          "pricedAt": "2026-10-16T10:28:50"
+          "price": 110.9,
+          "pricedAt": "2026-10-19T08:05:08"
         },
         {
           "id": 14,
@@ -237,8 +237,8 @@
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
-          "price": 107.9,
-          "pricedAt": "2026-10-16T10:28:52"
+          "price": 111.9,
+          "pricedAt": "2026-10-19T08:04:57"
         },
         {
           "id": 17,
