@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-10-31T10:08:43.279Z",
+  "fetchedAt": "2026-11-02T11:57:43.528Z",
   "source": "https://benzinko.com/server/api/stations/featured",
   "currency": "RSD",
   "stations": [
@@ -11,8 +11,8 @@
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
-          "price": 113.9,
-          "pricedAt": "2026-10-30T12:21:47"
+          "price": 114.9,
+          "pricedAt": "2026-11-01T13:50:17"
         },
         {
           "id": 6,
@@ -32,8 +32,8 @@
           "id": 8,
           "displayName": "Dizel Plus",
           "category": "DIZEL",
-          "price": 252.9,
-          "pricedAt": "2026-10-16T10:28:31"
+          "price": 253.9,
+          "pricedAt": "2026-11-01T13:50:30.585986478"
         },
         {
           "id": 9,
