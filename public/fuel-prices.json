@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-11-07T10:51:06.587Z",
+  "fetchedAt": "2026-11-08T10:59:59.760Z",
   "source": "https://benzinko.com/server/api/stations/featured",
   "currency": "RSD",
   "stations": [
@@ -11,8 +11,8 @@
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
-          "price": 114.9,
-          "pricedAt": "2026-11-01T13:50:17"
+          "price": 118.9,
+          "pricedAt": "2026-11-07T14:02:17"
         },
         {
           "id": 6,
@@ -66,8 +66,8 @@
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
-          "price": 113,
-          "pricedAt": "2026-11-06T11:58:07"
+          "price": 117,
+          "pricedAt": "2026-11-07T14:03:05"
         },
         {
           "id": 10,
@@ -114,8 +114,8 @@
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
-          "price": 113.4,
-          "pricedAt": "2026-10-30T12:22:07"
+          "price": 117.9,
+          "pricedAt": "2026-11-07T14:03:15"
         },
         {
           "id": 13,
@@ -169,8 +169,8 @@
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
-          "price": 112.9,
-          "pricedAt": "2026-10-30T12:22:21"
+          "price": 117.9,
+          "pricedAt": "2026-11-07T14:03:24"
         }
       ]
     },
@@ -189,8 +189,8 @@
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
-          "price": 113.9,
-          "pricedAt": "2026-10-30T12:22:30"
+          "price": 117.9,
+          "pricedAt": "2026-11-07T14:03:29.420929332"
         },
         {
           "id": 14,
@@ -237,8 +237,8 @@
           "id": 5,
           "displayName": "TNG",
           "category": "TNG",
-          "price": 112.9,
-          "pricedAt": "2026-10-30T12:22:58"
+          "price": 116.9,
+          "pricedAt": "2026-11-07T14:02:52"
         },
         {
           "id": 17,
